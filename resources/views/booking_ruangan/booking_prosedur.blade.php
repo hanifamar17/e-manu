@@ -1,0 +1,91 @@
+@extends('layouts.app')
+@section('title', 'Alur Administrasi Peminjaman')
+
+@section('content')
+<div class="max-w-2xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
+
+    <a href="{{ route('booking_ruangan.booking_landing') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors select-none touch-manipulation">
+        <i class="ph ph-arrow-left"></i> Kembali
+    </a>
+
+    <div class="mt-8 mb-10">
+        <h1 class="page-title text-2xl sm:text-[26px] font-bold tracking-tight leading-snug m-0">Alur Administrasi Peminjaman</h1>
+        <p class="page-sub text-md leading-relaxed text-[var(--ink-soft)] mt-2 max-w-[46ch]">Wajib dipatuhi seluruh peminjam sebelum menggunakan ruangan.</p>
+    </div>
+
+    <div class="idx-list border-t border-[var(--line)]">
+        
+        <div class="idx-row flex items-start gap-4 py-5 border-b border-[var(--line)] group transition-colors">
+            <span class="idx-num mono text-sm text-[var(--ink-faint)] w-6 shrink-0 pt-0.5 group-hover:text-[var(--ink)] transition-colors">01</span>
+            <div class="idx-body flex-1 min-w-0">
+                <h3 class="text-[15px] font-bold m-0">Cek Ketersediaan Jadwal</h3>
+                <p class="text-md text-[var(--ink-soft)] mt-1 m-0 leading-relaxed">
+                    Pastikan ruangan kosong lewat <a href="{{ route('booking_ruangan.jadwal_penggunaan') }}" class="font-bold underline text-[var(--ink)] hover:text-[var(--accent)] transition-colors touch-manipulation">Jadwal Penggunaan Lab</a>, lalu konfirmasi ke Kepala Lab.
+                </p>
+            </div>
+        </div>
+
+        <div class="idx-row flex items-start gap-4 py-5 border-b border-[var(--line)] group transition-colors">
+            <span class="idx-num mono text-sm text-[var(--ink-faint)] w-6 shrink-0 pt-0.5 group-hover:text-[var(--ink)] transition-colors">02</span>
+            <div class="idx-body flex-1 min-w-0">
+                <h3 class="text-[15px] font-bold m-0">Pengajuan Permohonan (H-1)</h3>
+                <p class="text-md text-[var(--ink-soft)] mt-1 m-0 leading-relaxed">
+                    Isi formulir minimal 1 hari sebelum penggunaan lewat <a href="{{ route('booking_ruangan.booking_form_page') }}" class="font-bold underline text-[var(--ink)] hover:text-[var(--accent)] transition-colors touch-manipulation">Form Peminjaman Lab</a>.
+                </p>
+            </div>
+        </div>
+
+        <div class="idx-row flex items-start gap-4 py-5 border-b border-[var(--line)] group transition-colors">
+            <span class="idx-num mono text-sm text-[var(--ink-faint)] w-6 shrink-0 pt-0.5 group-hover:text-[var(--ink)] transition-colors">03</span>
+            <div class="idx-body flex-1 min-w-0">
+                <h3 class="text-[15px] font-bold m-0">Persetujuan (Approval)</h3>
+                <p class="text-md text-[var(--ink-soft)] mt-1 m-0 leading-relaxed">
+                    Status pengajuan (disetujui/ditolak) dikirim otomatis lewat email Anda.
+                </p>
+            </div>
+        </div>
+
+        <div class="idx-row flex items-start gap-4 py-5 border-b border-[var(--line)] group transition-colors">
+            <span class="idx-num mono text-sm text-[var(--ink-faint)] w-6 shrink-0 pt-0.5 group-hover:text-[var(--ink)] transition-colors">04</span>
+            <div class="idx-body flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h3 class="text-[15px] font-bold m-0">Kontribusi Perawatan</h3>
+                    <span class="eyebrow mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 border border-[var(--line)] text-[var(--ink-soft)]">Khusus Eksternal</span>
+                </div>
+                <p class="text-md text-[var(--ink-soft)] mt-1 m-0 leading-relaxed">
+                    Peminjam luar MA Nurul Ummah wajib menyelesaikan kontribusi biaya pemeliharaan sebelum kegiatan dimulai.
+                </p>
+            </div>
+        </div>
+
+        <div class="idx-row flex items-start gap-4 py-5 border-b border-[var(--line)] group transition-colors">
+            <span class="idx-num text-base text-[var(--ink)] w-6 shrink-0 pt-0.5">
+                <i class="ph ph-check"></i>
+            </span>
+            <div class="idx-body flex-1 min-w-0">
+                <h3 class="text-[15px] font-bold m-0">Penggunaan Laboratorium</h3>
+                <p class="text-md text-[var(--ink-soft)] mt-1 m-0 leading-relaxed">
+                    Pintu dibuka oleh Kepala Lab. Peminjam wajib patuh prosedur, jaga kebersihan, dan bertanggung jawab atas keamanan fasilitas.
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="pt-12 mt-4">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+            <div>
+                <h2 class="text-lg font-bold m-0 tracking-tight">Prosedur Lengkap</h2>
+                <p class="text-md text-[var(--ink-soft)] mt-1 m-0">Baca detail regulasi penggunaan laboratorium.</p>
+            </div>
+            <a href="https://drive.google.com/file/d/1i_LDVmRl6fLK4a72Ndi7pj5JTIQ2M-Wo/view?usp=drive_link" target="_blank" class="btn-outline flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2 border border-[var(--line)] bg-transparent hover:bg-[var(--ink)] hover:text-[var(--paper)] transition-colors w-full sm:w-auto whitespace-nowrap select-none touch-manipulation">
+                <i class="ph ph-arrow-square-out text-base"></i> Buka PDF di Tab Baru
+            </a>
+        </div>
+        <div class="card-outline border border-[var(--line)] overflow-hidden">
+            <iframe src="https://drive.google.com/file/d/1i_LDVmRl6fLK4a72Ndi7pj5JTIQ2M-Wo/preview?usp=drive_link" class="w-full h-[50vh] sm:h-[60vh] block bg-[var(--paper)]" allow="autoplay" loading="lazy"></iframe>
+        </div>
+    </div>
+
+</div>
+@endsection

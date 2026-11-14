@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "css": "tailwindcss -i resources/css/input.css -o public/css/output.css --watch",
+    "build": "tailwindcss -i resources/css/input.css -o public/css/output.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4",
+    "@tailwindcss/typography": "^0.5",
+    "tailwindcss": "^4"
+  }
+}

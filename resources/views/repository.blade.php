@@ -1,0 +1,323 @@
+@extends('layouts.app')
+
+@section('title', 'Portal e-Manu')
+
+@section('content')
+<style>
+    #manu-page {
+        --font-display: 'Source Serif 4', ui-serif, Georgia, serif;
+        --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+        --color-paper: #faf8f5;
+        --color-ink: #1f1c19;
+        --color-ink-soft: #6b6459;
+        --color-ink-faint: #a49b8c;
+        --color-line: #e6e0d6;
+        --color-accent: #a8501f;
+        --color-accent-soft: #f3e6dc;
+    }
+
+    #manu-page {
+        background: var(--color-paper);
+        color: var(--color-ink);
+        font-family: var(--font-body);
+        overflow-x: clip;
+    }
+
+    #manu-page h1,
+    #manu-page .idx {
+        font-family: var(--font-display);
+        font-style: normal;
+    }
+
+    #manu-page .idx {
+        font-variant-numeric: tabular-nums;
+    }
+
+    #manu-page .eyebrow {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--color-ink-faint);
+    }
+
+    #manu-page .item:hover {
+        padding-left: 6px;
+        background: rgba(31, 28, 25, 0.03);
+    }
+
+    #manu-page .item:active {
+        background: var(--color-accent-soft);
+        transform: scale(0.99);
+    }
+
+    #manu-page .item:hover .idx,
+    #manu-page .item:hover h3 {
+        color: var(--color-accent);
+    }
+
+    #manu-page .item:hover .arrow {
+        color: var(--color-accent);
+        transform: translateX(3px);
+    }
+
+    #manu-page .sidebar-btn.is-active {
+        color: var(--color-accent);
+        background: var(--color-accent-soft);
+        border-left-color: var(--color-accent);
+        padding-left: 14px;
+        font-weight: 600;
+    }
+
+    #manu-page .sidebar-btn:not(.is-active):hover {
+        color: var(--color-ink);
+        background: rgba(31, 28, 25, 0.03);
+        padding-left: 14px;
+        border-left-color: var(--color-line);
+    }
+</style>
+
+<div id="manu-page" class="min-h-screen flex flex-col md:flex-row antialiased relative max-w-[1200px] mx-auto px-5">
+
+    <!-- MOBILE HEADER -->
+    <div class="md:hidden px-5 py-4 sticky top-0 z-30 flex items-center justify-between transition-all duration-150"
+        style="border-bottom:1px solid var(--color-line); background:var(--color-paper);">
+        <button id="mobile-sidebar-open"
+            class="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-widest active:scale-[0.97] touch-manipulation cursor-pointer"
+            style="color:var(--color-ink);">
+            <i class="fa-solid fa-bars text-base"></i>
+            <span>Menu</span>
+        </button>
+        <span id="mobile-active-badge" class="text-[11px] font-bold uppercase tracking-widest truncate"
+            style="color:var(--color-ink-faint);">
+            {{ $menu[0]['category'] }}
+        </span>
+    </div>
+
+    <!-- BACKDROP -->
+    <div id="sidebar-backdrop"
+        class="fixed inset-0 bg-zinc-900/50 z-40 hidden opacity-0 transition-opacity duration-150 md:hidden"></div>
+
+    <!-- SIDEBAR -->
+    <aside id="main-sidebar"
+        class="fixed md:sticky top-0 left-0 z-50 md:z-0 w-72 h-full px-5 py-8 flex flex-col transform -translate-x-full md:translate-x-0 transition-transform duration-150 ease-out shrink-0 overflow-y-auto"
+        style="background:var(--color-paper); border-right:1px solid var(--color-line);">
+
+        <!-- Mobile Close -->
+        <div class="flex items-center justify-between md:hidden mb-8 pb-4"
+            style="border-bottom:1px solid var(--color-line);">
+            <p class="eyebrow">Pilih Layanan</p>
+            <button id="mobile-sidebar-close"
+                class="transition-colors active:scale-[0.97] cursor-pointer touch-manipulation"
+                style="color:var(--color-ink-faint);">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Desktop Header -->
+        <div class="hidden md:block mb-8 pb-4" style="border-bottom:1px solid var(--color-line);">
+            <p class="eyebrow">Kategori Layanan</p>
+        </div>
+
+        <!-- Nav -->
+        <nav class="space-y-0 flex-1">
+            @foreach ($menu as $item)
+            <button data-target="pane-{{ $loop->index }}" data-category-name="{{ $item['category'] }}"
+                class="sidebar-btn {{ $loop->first ? 'is-active' : '' }} w-full flex items-center gap-3 px-2 py-3.5 text-left transition-all duration-150 ease-out cursor-pointer touch-manipulation group text-[13px]"
+                style="border-bottom:1px solid var(--color-line); border-left:2px solid transparent; color:var(--color-ink-soft);">
+                <div
+                    class="shrink-0 w-5 flex items-center justify-center opacity-60 group-hover:opacity-100 transition-opacity">
+                    {!! $item['icon'] !!}
+                </div>
+                <span class="uppercase tracking-wide truncate">{{ $item['category'] }}</span>
+            </button>
+            @endforeach
+        </nav>
+
+        <!-- Footer -->
+        <div class="mt-4">
+            <div class="flex items-center justify-end px-2 py-3.5 md:pt-3.5 border-t border-[#e6e0d6] md:border-t-0">
+                <a id="sidebar-settings-btn" href="{{ \Illuminate\Support\Facades\Route::has('pengumuman.pengumuman_list') ? route('pengumuman.pengumuman_list') : '#' }}"
+                    class="shrink-0 w-12 h-12 md:w-8 md:h-8 flex items-center justify-center opacity-60 hover:opacity-100 active:opacity-100 active:scale-90 transition-all duration-150 ease-out cursor-pointer touch-manipulation select-none border border-[color:var(--color-ink-faint)] hover:border-[color:var(--color-accent)]"
+                    style="color:var(--color-ink-soft);">
+                    <i class="fa-solid fa-gear text-[20px] md:text-[15px]"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 p-5 md:p-12 lg:px-16 overflow-y-auto">
+        <div class="max-w-3xl mx-auto">
+
+            @foreach ($menu as $item)
+            <div id="pane-{{ $loop->index }}" class="content-pane {{ $loop->first ? 'block' : 'hidden' }}">
+
+                @if ($item['category'] === 'Home')
+
+                <section class="mb-14">
+                    <span class="text-xs tracking-widest uppercase font-semibold"
+                        style="color:var(--color-accent);">Arsip Digital</span>
+                    <h1 class="mt-3 text-3xl md:text-4xl font-serif leading-tight" style="color:var(--color-ink);">
+                        Repositori Madrasah
+                    </h1>
+                    <p class="mt-4 text-sm md:text-base leading-relaxed max-w-md" style="color:var(--color-ink-soft);">
+                        Layanan pengarsipan internal meliputi dokumen, formulir, dan data institusi dalam satu tempat.
+                    </p>
+                </section>
+
+                <section class="md:hidden mb-14">
+                    <button type="button" onclick="document.getElementById('mobile-sidebar-open').click()"
+                        id="btn-masuk-repositori" class="inline-flex items-center gap-2 px-6 py-3 min-h-[44px]
+        text-[12px] font-bold uppercase tracking-widest
+        bg-[var(--color-ink)] text-[var(--color-paper)]
+        hover:bg-[var(--color-accent)]
+        active:scale-[0.96]
+        transition-all duration-150
+        touch-manipulation
+        focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40
+        cursor-pointer rounded-md">
+                        Masuk Repositori
+                        <i class="fa-solid fa-arrow-right text-[11px]"></i>
+                    </button>
+                </section>
+
+                <section>
+                    <h2 class="text-xs uppercase tracking-widest font-semibold mb-1"
+                        style="color:var(--color-ink-faint);">
+                        Pengumuman
+                    </h2>
+
+                    <div style="border-top:1px solid var(--color-line);">
+                        @foreach ($pengumuman as $a)
+                        <a href="{{ route('pengumuman.pengumuman_detail', $a->id) }}"
+                            class="item group flex items-start gap-4 py-5 px-0.5 no-underline text-inherit transition-all duration-150 ease-out cursor-pointer touch-manipulation"
+                            style="border-bottom:1px solid var(--color-line);">
+                            <span
+                                class="idx text-[15px] w-6 shrink-0 pt-0.5 transition-colors duration-150 group-hover:text-[#a8501f]"
+                                style="color:var(--color-ink-faint);">{{ sprintf('%02d', $loop->iteration) }}</span>
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-[15px] font-semibold m-0 leading-snug transition-colors duration-150 group-hover:text-[#a8501f]"
+                                    style="color:var(--color-ink);">{{ $a->title }}</h3>
+                                <time class="block text-xs mt-0.5 mb-1 leading-none"
+                                    style="color:var(--color-ink-faint);">{{ $a->updated_at->translatedFormat('j F Y, H:i') }}</time>
+                                <div class="line-clamp-3">
+                                    <p class="text-xs mt-1 m-0 leading-relaxed" style="color:var(--color-ink-soft);">{{ \Illuminate\Support\Str::limit(strip_tags($a->deskripsi), 150) }}</p>
+                                </div>
+                            </div>
+                            <span
+                                class="arrow text-xl shrink-0 transition-all duration-150 group-hover:translate-x-1 group-hover:text-[#a8501f]"
+                                style="color:var(--color-ink-faint);">&rarr;</span>
+                        </a>
+                        @endforeach
+                    </div>
+                </section>
+
+                @else
+
+                <!-- DAFTAR LINK — kategori selain Home -->
+                <h1 class="text-2xl font-semibold tracking-tight leading-snug mb-2.5">{{ $item['category'] }}</h1>
+                <p class="text-sm leading-relaxed mb-9 max-w-[36ch]" style="color:var(--color-ink-soft);">
+                    Silakan pilih menu aplikasi atau formulir di bawah ini.
+                </p>
+
+                <div style="border-top:1px solid var(--color-line);">
+                    @foreach ($item['links'] as $link)
+                    @if (! empty($link['disabled']))
+                    <div class="flex items-center gap-4 py-5 px-0.5 select-none opacity-40 grayscale cursor-not-allowed"
+                        style="border-bottom:1px solid var(--color-line);">
+                        <span class="idx text-[15px] w-6 shrink-0" style="color:var(--color-ink-faint);">{{ sprintf('%02d', $loop->iteration) }}</span>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-[15px] font-semibold m-0" style="color:var(--color-ink);">{{ $link['title'] }}
+                            </h3>
+                            @if (! empty($link['subtext']))
+                            <p class="text-xs mt-0.5 m-0 truncate" style="color:var(--color-ink-soft);">{{ $link['subtext'] }}</p>
+                            @endif
+                        </div>
+                        <i class="fa-solid fa-lock text-sm shrink-0" style="color:var(--color-ink-faint);"></i>
+                    </div>
+                    @else
+                    <a href="{{ $link['url'] }}"
+                        class="item group flex items-center gap-4 py-5 px-0.5 no-underline text-inherit transition-all duration-150 ease-out cursor-pointer touch-manipulation"
+                        style="border-bottom:1px solid var(--color-line);">
+                        <span class="idx text-[15px] w-6 shrink-0 transition-colors duration-150"
+                            style="color:var(--color-ink-faint);">{{ sprintf('%02d', $loop->iteration) }}</span>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-[15px] font-semibold m-0 transition-colors duration-150"
+                                style="color:var(--color-ink);">{{ $link['title'] }}</h3>
+                            @if (! empty($link['subtext']))
+                            <p class="text-xs mt-0.5 m-0 truncate" style="color:var(--color-ink-soft);">{{ $link['subtext'] }}</p>
+                            @endif
+                        </div>
+                        <span class="arrow text-2xl shrink-0 transition-all duration-150"
+                            style="color:var(--color-ink-faint);">&rarr;</span>
+                    </a>
+                    @endif
+                    @endforeach
+                </div>
+
+                @endif
+
+            </div>
+            @endforeach
+
+        </div>
+    </main>
+
+</div>
+
+<!-- ========================================== -->
+<!-- JAVASCRIPT CONTROLLER (TAB & MOBILE DRAWER)-->
+<!-- ========================================== -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const sidebar = document.getElementById('main-sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        const btnOpen = document.getElementById('mobile-sidebar-open');
+        const btnClose = document.getElementById('mobile-sidebar-close');
+        const sidebarButtons = document.querySelectorAll('.sidebar-btn');
+        const contentPanes = document.querySelectorAll('.content-pane');
+        const mobileActiveBadge = document.getElementById('mobile-active-badge');
+
+        function openMobileSidebar() {
+            backdrop.classList.remove('hidden');
+            setTimeout(() => backdrop.classList.add('opacity-100'), 10);
+            sidebar.classList.remove('-translate-x-full');
+        }
+
+        function closeMobileSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            backdrop.classList.remove('opacity-100');
+            setTimeout(() => backdrop.classList.add('hidden'), 150);
+        }
+
+        btnOpen?.addEventListener('click', openMobileSidebar);
+        btnClose?.addEventListener('click', closeMobileSidebar);
+        backdrop?.addEventListener('click', closeMobileSidebar);
+
+        function switchTab(targetId, categoryName) {
+            contentPanes.forEach(pane => {
+                pane.classList.toggle('block', pane.id === targetId);
+                pane.classList.toggle('hidden', pane.id !== targetId);
+            });
+
+            sidebarButtons.forEach(btn => {
+                const isActive = btn.getAttribute('data-target') === targetId;
+                btn.classList.toggle('is-active', isActive);
+            });
+
+            if (mobileActiveBadge && categoryName) {
+                mobileActiveBadge.textContent = categoryName;
+            }
+
+            closeMobileSidebar();
+        }
+
+        sidebarButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                switchTab(button.getAttribute('data-target'), button.getAttribute('data-category-name'));
+            });
+        });
+    });
+</script>
+@endsection

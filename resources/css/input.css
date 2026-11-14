@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@source "../views";
+@plugin "@tailwindcss/typography";
+
+.ql-align-center {
+    text-align: center;
+}
+
+.ql-align-right {
+    text-align: right;
+}
+
+.ql-align-justify {
+    text-align: justify;
+}

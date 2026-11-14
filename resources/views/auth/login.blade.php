@@ -1,0 +1,97 @@
+@extends('layouts.app')
+@section('title', 'Login')
+
+@section('content')
+
+<main class="max-w-[480px] mx-auto px-5 pt-12 pb-16 font-sans text-zinc-900 select-none">
+    <style>
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+            -webkit-text-fill-color: #18181b !important;
+            -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+    </style>
+
+    @if ($errors->any())
+    <div class="mb-8 border-l-2 border-zinc-900 pl-3" role="alert">
+        <div class="space-y-1 text-sm font-semibold text-zinc-900">
+            @foreach ($errors->all() as $msg)
+            <span class="block">{{ $msg }}</span>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
+    <h1 class="text-2xl font-bold tracking-tight leading-snug mt-2 mb-2.5">
+        Pintu Masuk Sistem
+    </h1>
+    <p class="text-sm leading-relaxed text-zinc-500 mb-2 max-w-[36ch]">
+        Silakan identifikasi akun Anda untuk melanjutkan ke panel kerja.
+    </p>
+    <p class="text-xs text-zinc-400 mb-9 max-w-[40ch] border-l border-zinc-200 pl-3 py-0.5">
+        Modul hanya dikelola tim operasional internal. Hubungi administrator untuk hak akses.
+    </p>
+
+    <form method="post" action="{{ route('login') }}" class="space-y-8">
+        @csrf
+
+        <div class="relative z-0 w-full group">
+            <input type="text" name="username" id="floating_username" value="{{ old('username') }}" autocomplete="username"
+                class="block py-2.5 px-0 w-full text-sm text-zinc-900 bg-transparent border-0 border-b border-zinc-200 appearance-none focus:outline-none focus:ring-0 focus:border-zinc-900 peer transition-colors duration-150 rounded-none"
+                placeholder=" " required />
+            <label for="floating_username"
+                class="absolute text-sm text-zinc-400 duration-150 transform -translate-y-5 scale-75 top-2.5 origin-[0] pointer-events-none peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:scale-75 peer-focus:-translate-y-5 peer-focus:text-zinc-900 peer-focus:font-semibold peer-autofill:scale-75 peer-autofill:-translate-y-5 peer-autofill:text-zinc-900">
+                Username
+            </label>
+        </div>
+
+        <div class="relative z-0 w-full group">
+            <input type="password" name="password" id="floating_password" autocomplete="current-password"
+                class="block py-2.5 px-0 w-full text-sm text-zinc-900 bg-transparent border-0 border-b border-zinc-200 appearance-none focus:outline-none focus:ring-0 focus:border-zinc-900 peer transition-colors duration-150 rounded-none"
+                placeholder=" " required />
+            <label for="floating_password"
+                class="absolute text-sm text-zinc-400 duration-150 transform -translate-y-5 scale-75 top-2.5 origin-[0] pointer-events-none peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:scale-75 peer-focus:-translate-y-5 peer-focus:text-zinc-900 peer-focus:font-semibold peer-autofill:scale-75 peer-autofill:-translate-y-5 peer-autofill:text-zinc-900">
+                Password
+            </label>
+        </div>
+
+        <div class="pt-4">
+            <button id="loginBtn" type="submit"
+                class="w-full flex items-center justify-center gap-2 bg-zinc-900 text-white text-[13px] font-semibold py-4 px-5 transition-all duration-150 ease-out hover:bg-zinc-800 active:scale-[0.99] cursor-pointer touch-manipulation select-none disabled:opacity-70 disabled:cursor-not-allowed">
+                <span id="btnText" class="flex items-center gap-1.5">
+                    Masuk &rarr;
+                </span>
+                <svg id="spinner" class="hidden w-4 h-4 animate-spin text-zinc-300" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+            </button>
+        </div>
+    </form>
+
+    <div class="flex justify-center">
+        <a href="{{ route('repository') }}" class="inline-flex items-center gap-1.5 mt-8 text-[13px] font-semibold text-zinc-500 no-underline
+           transition-all duration-150
+           hover:text-zinc-900 hover:-translate-x-0.5
+           active:scale-[0.97]
+           cursor-pointer select-none touch-manipulation">Kembali ke Dashboard Utama
+        </a>
+    </div>
+</main>
+
+<script>
+    const form = document.querySelector('form');
+    const btn = document.getElementById('loginBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+
+    form.addEventListener('submit', () => {
+        btn.disabled = true;
+        btnText.textContent = 'Memproses...';
+        spinner.classList.remove('hidden');
+    });
+</script>
+
+@endsection

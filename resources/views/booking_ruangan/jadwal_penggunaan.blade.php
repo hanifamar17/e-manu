@@ -1,0 +1,333 @@
+@extends('layouts.app')
+@section('title', 'Jadwal Penggunaan Lab')
+
+@section('content')
+<div class="max-w-5xl mx-auto px-4 py-6 sm:py-10 text-[var(--ink)]">
+
+    @php $backUrl = route('booking_ruangan.booking_landing'); @endphp
+
+    <a href="{{ $backUrl }}"
+        class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors select-none touch-manipulation">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+            </path>
+        </svg>
+        Kembali
+    </a>
+
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 mt-6">
+        <div>
+            <h1 class="page-title text-xl sm:text-2xl font-bold tracking-tight m-0">Kalender Akademik</h1>
+            <p class="page-sub text-sm text-[var(--ink-soft)] mt-1 m-0">Dan jadwal penggunaan lab komputer</p>
+        </div>
+        <div
+            class="mono text-[11px] font-bold text-[var(--ink-soft)] border border-[var(--line)] px-3 py-1.5 uppercase tracking-widest whitespace-nowrap">
+            {{ $jadwal->count() }} Jadwal
+        </div>
+    </div>
+
+    <div class="lg:grid lg:grid-cols-[360px_1fr] lg:gap-10 lg:items-start">
+
+        <div class="border-t border-[var(--line)] pt-6 mb-8 lg:mb-0">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="calendarLabel" class="text-[15px] font-bold m-0"></h2>
+                <div class="flex items-center gap-1">
+                    <button id="todayBtn"
+                        class="btn-outline px-3 py-1.5 text-xs border border-[var(--line)] text-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--paper)] transition-colors touch-manipulation">
+                        <i class="ph ph-calendar-check text-base"></i>
+                        Hari ini
+                    </button>
+                    <button id="prevMonth"
+                        class="btn-outline p-1.5 border border-[var(--line)] text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--line)] transition-colors touch-manipulation">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <button id="nextMonth"
+                        class="btn-outline p-1.5 border border-[var(--line)] text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--line)] transition-colors touch-manipulation">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div
+                class="grid grid-cols-7 gap-1 text-center mono text-[10px] font-bold uppercase tracking-widest text-[var(--ink-faint)] mb-2 select-none border-b border-[var(--line)] pb-2">
+                <div>Min</div>
+                <div>Sen</div>
+                <div>Sel</div>
+                <div>Rab</div>
+                <div>Kam</div>
+                <div>Jum</div>
+                <div>Sab</div>
+            </div>
+
+            <div id="calendarGrid" class="grid grid-cols-7 gap-1 sm:gap-2"></div>
+        </div>
+
+        <div class="border-t border-[var(--line)] pt-6 lg:border-t-0 lg:pt-0 lg:sticky lg:top-10">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="selectedDateLabel" class="text-sm font-bold m-0"></h3>
+                <span id="selectedDateCount"
+                    class="mono text-[10px] font-bold uppercase tracking-widest border border-[var(--line)] px-2 py-1 text-[var(--ink-soft)]"></span>
+            </div>
+
+            <div id="dayListBody" class="flex flex-col gap-2"></div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+    const jadwalData = {{ Illuminate\Support\Js::from($jadwal) }};
+    const kalenderData = {{ Illuminate\Support\Js::from($kalender) }};
+
+    // Data dari form publik -> WAJIB di-escape sebelum masuk innerHTML.
+    function esc(v) {
+        return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function parseISO(iso) {
+        const [y, m, d] = iso.split("-").map(Number);
+        return new Date(y, m - 1, d);
+    }
+
+    const jadwalByDate = {};
+    jadwalData.forEach(j => {
+        const iso = j.tanggal_iso;
+        if (!iso) return;
+        if (!jadwalByDate[iso]) jadwalByDate[iso] = [];
+        jadwalByDate[iso].push(j);
+    });
+
+    const kalenderByDate = {};
+    kalenderData.forEach(ev => {
+        let cur = parseISO(ev.tanggal_mulai_iso);
+        const end = parseISO(ev.tanggal_selesai_iso);
+        while (cur <= end) {
+            const iso = isoOfDate(cur);
+            if (!kalenderByDate[iso]) kalenderByDate[iso] = [];
+            kalenderByDate[iso].push(ev);
+            cur.setDate(cur.getDate() + 1);
+        }
+    });
+
+    const monthNames = [
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+
+    let today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    function isoOfDate(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${dd}`;
+    }
+
+    let viewYear = today.getFullYear();
+    let viewMonth = today.getMonth();
+    let selectedISO = isoOfDate(today);
+
+    const calendarGrid = document.getElementById("calendarGrid");
+    const calendarLabel = document.getElementById("calendarLabel");
+    const selectedDateLabel = document.getElementById("selectedDateLabel");
+    const selectedDateCount = document.getElementById("selectedDateCount");
+    const dayListBody = document.getElementById("dayListBody");
+
+    function isoOf(y, m, d) {
+        const mm = String(m + 1).padStart(2, "0");
+        const dd = String(d).padStart(2, "0");
+        return `${y}-${mm}-${dd}`;
+    }
+
+    const EVENT_COLORS = {
+        jadwal: { text: "text-[var(--accent)]", border: "border-[var(--accent)]", label: "Jadwal Lab" },
+        libur: { text: "text-[#C87979]", border: "border-[#C87979]", label: "Libur" },    // Muted Rose/Brick
+        agenda: { text: "text-[#D4A373]", border: "border-[#D4A373]", label: "Agenda" },   // Muted Ochre/Tan
+        akademik: { text: "text-[#6B8395]", border: "border-[#6B8395]", label: "Akademik" }, // Muted Slate Blue
+        default: { text: "text-[var(--ink-soft)]", border: "border-[var(--line)]", label: "Lainnya" },
+    };
+
+    function getEventDot(type, isSelected) {
+        const base = "w-2 h-2 shrink-0 inline-block rounded-full";
+
+        if (isSelected) {
+            return `<span class="${base} bg-[var(--paper)] border border-[var(--ink)]"></span>`;
+        }
+        switch (type) {
+            case "jadwal": return `<span class="${base} bg-[var(--accent)]" title="Jadwal Lab"></span>`;
+            case "akademik": return `<span class="${base} bg-[#6B8395]" title="Akademik"></span>`;
+            case "libur": return `<span class="${base} bg-[#C87979]" title="Libur"></span>`;
+            case "agenda": return `<span class="${base} bg-[#D4A373]" title="Agenda"></span>`;
+            default: return `<span class="${base} bg-[var(--ink-faint)]"></span>`;
+        }
+    }
+
+    function renderCalendar() {
+        calendarLabel.textContent = `${monthNames[viewMonth]} ${viewYear}`;
+        calendarGrid.innerHTML = "";
+
+        const firstDay = new Date(viewYear, viewMonth, 1);
+        const startWeekday = firstDay.getDay();
+        const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+        for (let i = 0; i < startWeekday; i++) {
+            calendarGrid.appendChild(document.createElement("div"));
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const iso = isoOf(viewYear, viewMonth, d);
+            const hasJadwal = !!jadwalByDate[iso];
+            const kalenderEvents = kalenderByDate[iso] || [];
+            const isLibur = kalenderEvents.some(e => e.kategori === "libur");
+            const isToday = iso === isoOfDate(today);
+            const isSelected = iso === selectedISO;
+
+            const cell = document.createElement("button");
+            cell.type = "button";
+            cell.dataset.iso = iso;
+
+            cell.className = [
+                "relative aspect-square flex flex-col items-center justify-center text-sm",
+                "transition-all duration-150 ease-out cursor-pointer touch-manipulation active:scale-95",
+                isSelected
+                    ? "bg-[var(--ink)] text-[var(--paper)] font-bold"
+                    : isToday
+                        ? "border border-[var(--ink)] text-[var(--ink)] font-bold hover:bg-[var(--accent-soft)]"
+                        : isLibur
+                            ? "border-b-2 border-red-600 text-[var(--ink)] font-medium hover:bg-[var(--accent-soft)]"
+                            : "text-[var(--ink-soft)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
+            ].join(" ");
+
+            const dots = [];
+            if (hasJadwal) dots.push(getEventDot("jadwal", isSelected));
+            kalenderEvents.forEach(ev => dots.push(getEventDot(ev.kategori, isSelected)));
+
+            cell.innerHTML = `
+                <span>${d}</span>
+                <div class="flex gap-[3px] absolute bottom-1.5">${dots.join("")}</div>
+            `;
+
+            cell.addEventListener("click", () => {
+                selectedISO = iso;
+                renderCalendar();
+                renderDayList();
+            });
+
+            calendarGrid.appendChild(cell);
+        }
+    }
+
+    function formatLabelDate(iso) {
+        const [y, m, d] = iso.split("-").map(Number);
+        const date = new Date(y, m - 1, d);
+        const hariNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        return `${hariNames[date.getDay()]}, ${d} ${monthNames[m - 1]} ${y}`;
+    }
+
+    function renderDayList() {
+        selectedDateLabel.textContent = formatLabelDate(selectedISO);
+        const entries = jadwalByDate[selectedISO] || [];
+        const kalenderEvents = kalenderByDate[selectedISO] || [];
+        selectedDateCount.textContent = `${entries.length + kalenderEvents.length} Jadwal`;
+
+        dayListBody.innerHTML = "";
+
+        if (kalenderEvents.length > 0) {
+            const label = document.createElement("p");
+            label.className = "eyebrow mono mt-1 mb-2";
+            label.textContent = "Kalender Akademik";
+            dayListBody.appendChild(label);
+
+            const iconMap = {
+                libur: `<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86l-8.18 14.14A2 2 0 003.82 21h16.36a2 2 0 001.71-3l-8.18-14.14a2 2 0 00-3.42 0z"></path></svg>`,
+                agenda: `<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>`,
+                akademik: `<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.42A12.083 12.083 0 0112 21a12.083 12.083 0 01-6.16-10.42L12 14z"></path></svg>`,
+            };
+
+            kalenderEvents.forEach(ev => {
+                const c = EVENT_COLORS[ev.kategori] || EVENT_COLORS.default;
+                const banner = document.createElement("div");
+                banner.className = `flex items-start gap-2.5 border-l-2 ${c.border} px-3 py-2.5`;
+                banner.innerHTML = `
+                    <span class="${c.text} mt-0.5">${iconMap[ev.kategori] || ""}</span>
+                    <div>
+                        <p class="eyebrow mono m-0 ${c.text}">${c.label}</p>
+                        <p class="text-[13px] font-bold ${c.text} mt-0.5 m-0">${esc(ev.keterangan)}</p>
+                    </div>
+                `;
+                dayListBody.appendChild(banner);
+            });
+
+            const divider = document.createElement("hr");
+            divider.className = "border-[var(--line)] my-2";
+            dayListBody.appendChild(divider);
+        }
+
+        if (entries.length > 0) {
+            const label = document.createElement("p");
+            label.className = "eyebrow mono mb-1 mt-2 flex items-center gap-1.5";
+            label.innerHTML = `Jadwal Lab Komputer`;
+            dayListBody.appendChild(label);
+        }
+
+        if (entries.length === 0) {
+            dayListBody.innerHTML += `
+                <div class="card-outline py-12 text-center flex flex-col items-center justify-center text-[var(--ink-faint)]">
+                    <svg class="w-8 h-8 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span class="mono text-[11px] font-bold uppercase tracking-widest">— KOSONG —</span>
+                </div>`;
+            return;
+        }
+
+        entries.forEach(j => {
+            const item = document.createElement("div");
+            item.className = "card-outline flex flex-col sm:flex-row sm:items-start justify-between p-4 gap-3 transition-colors duration-150 hover:bg-[var(--accent-soft)]";
+            item.innerHTML = `
+                <div>
+                    <p class="text-[14px] font-bold text-[var(--ink)] m-0">${esc(j.nama_kegiatan)}</p>
+                    <p class="mono text-[11px] text-[var(--ink-soft)] mt-1 uppercase tracking-wider">${esc(j.nama_pemesan)}</p>
+                    <div class="mt-3">
+                        <p class="eyebrow mono m-0">Catatan</p>
+                        <p class="text-[12px] text-[var(--ink-soft)] mt-0.5 m-0 max-w-prose leading-relaxed">${esc(j.catatan_tambahan) || '—'}</p>
+                    </div>
+                </div>
+                <div class="mono text-[11px] font-bold text-[var(--ink)] border border-[var(--line)] px-2.5 py-1.5 w-fit sm:w-auto self-start bg-[var(--paper)]">
+                    ${esc(j.waktu_mulai_raw)} - ${esc(j.waktu_selesai_raw)}
+                </div>
+            `;
+            dayListBody.appendChild(item);
+        });
+    }
+
+    document.getElementById("prevMonth").addEventListener("click", () => {
+        viewMonth--;
+        if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+        renderCalendar();
+    });
+
+    document.getElementById("nextMonth").addEventListener("click", () => {
+        viewMonth++;
+        if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+        renderCalendar();
+    });
+
+    document.getElementById("todayBtn").addEventListener("click", () => {
+        viewYear = today.getFullYear();
+        viewMonth = today.getMonth();
+        selectedISO = isoOfDate(today);
+        renderCalendar();
+        renderDayList();
+    });
+
+    renderCalendar();
+    renderDayList();
+</script>
+@endsection

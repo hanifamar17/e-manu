@@ -1,0 +1,263 @@
+:root {
+            --ink: #17171a;
+            --ink-soft: #5c5952;
+            --ink-faint: #a19c92;
+            --paper: #faf9f7;
+            --line: #e7e4de;
+            --accent: #2d5c4d;
+            /* hijau tua kalem, bukan indigo generik */
+            --accent-soft: #eef3f0;
+            --font-arabic: 'Noto Naskh Arabic', 'Amiri', serif;
+        }
+
+        body {
+            font-family: 'Manrope', sans-serif;
+            background: var(--paper);
+            color: var(--ink);
+            overflow-x: clip;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* garis bawah nav-link, statement, bukan gradient */
+        .nav-mark {
+            box-shadow: inset 0 -2px 0 0 var(--accent);
+        }
+
+        .menu-panel {
+            transform-origin: top right;
+            transition: opacity .16s ease, transform .16s ease;
+        }
+
+        .menu-panel[data-state="closed"] {
+            opacity: 0;
+            transform: scale(.97) translateY(-4px);
+            pointer-events: none;
+        }
+
+        .menu-panel[data-state="open"] {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+
+        /* ===========================================================
+           GLOBAL PAGE PRIMITIVES
+           Dipakai lintas halaman (booking, jadwal, form, repository)
+           supaya child template tidak perlu <style> sendiri.
+           =========================================================== */
+
+        .eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--ink-faint);
+        }
+
+        .eyebrow.accent {
+            color: var(--accent);
+        }
+
+        .page-title {
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            line-height: 1.2;
+            color: var(--ink);
+        }
+
+        .page-sub {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--ink-soft);
+        }
+
+        /* numbered flat list — item baris */
+        .idx-list {
+            border-top: 1px solid var(--line);
+        }
+
+        .idx-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px 2px;
+            border-bottom: 1px solid var(--line);
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            transition: padding-left .15s ease-out, background-color .15s ease-out, transform .15s ease-out;
+        }
+
+        .idx-row:hover {
+            padding-left: 6px;
+            background: rgba(23, 23, 26, 0.025);
+        }
+
+        .idx-row:active {
+            background: var(--accent-soft);
+            transform: scale(0.99);
+        }
+
+        .idx-row.disabled {
+            opacity: .4;
+            filter: grayscale(1);
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .idx-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ink-faint);
+            width: 22px;
+            flex-shrink: 0;
+            transition: color .15s ease-out;
+        }
+
+        .idx-row:hover .idx-num {
+            color: var(--accent);
+        }
+
+        .idx-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .idx-body h3 {
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0;
+            color: var(--ink);
+            transition: color .15s ease-out;
+        }
+
+        .idx-row:hover .idx-body h3 {
+            color: var(--accent);
+        }
+
+        .idx-body p {
+            font-size: 12.5px;
+            color: var(--ink-faint);
+            margin: 2px 0 0;
+        }
+
+        .idx-arrow {
+            font-size: 20px;
+            color: var(--ink-faint);
+            flex-shrink: 0;
+            transition: transform .15s ease-out, color .15s ease-out;
+        }
+
+        .idx-row:hover .idx-arrow {
+            transform: translateX(3px);
+            color: var(--accent);
+        }
+
+        /* back link */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ink-soft);
+            text-decoration: none;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            transition: color .15s ease-out, transform .15s ease-out;
+        }
+
+        .back-link:hover {
+            color: var(--ink);
+            transform: translateX(-2px);
+        }
+
+        .back-link:active {
+            transform: scale(.97);
+        }
+
+        /* outline button (mis. buka PDF, hari ini, dsb) */
+        .btn-outline {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 10px 16px;
+            border: 1px solid var(--line);
+            color: var(--ink);
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            transition: background-color .15s ease-out, border-color .15s ease-out, transform .15s ease-out, color .15s ease-out;
+        }
+
+        .btn-outline:hover {
+            background: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-outline:active {
+            background: var(--ink);
+            border-color: var(--ink);
+            color: #fff;
+            transform: scale(.98);
+        }
+
+        /* sidebar nav (repository) */
+        .sidebar-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 8px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+            border-bottom: 1px solid var(--line);
+            border-left: 2px solid transparent;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            transition: color .15s ease-out, background-color .15s ease-out, padding-left .15s ease-out, border-color .15s ease-out;
+        }
+
+        .sidebar-btn:hover {
+            color: var(--ink);
+            background: rgba(23, 23, 26, 0.025);
+            padding-left: 14px;
+            border-left-color: var(--line);
+        }
+
+        .sidebar-btn.is-active {
+            color: var(--accent);
+            background: var(--accent-soft);
+            border-left-color: var(--accent);
+            padding-left: 14px;
+            font-weight: 700;
+        }
+
+        /* step row (alur administrasi) */
+        .step-row {
+            transition: border-color .15s ease, background-color .15s ease;
+        }
+
+        .step-row:active {
+            border-left-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .card-outline {
+            border: 1px solid var(--line);
+        }

@@ -1,0 +1,31 @@
+@extends('layouts.app')
+@section('title', $item->title)
+
+@section('content')
+<div class="max-w-3xl mx-auto px-5 py-9 sm:py-14 text-[#1f1c19]">
+    <a href="{{ route('repository') }}"
+        class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors select-none touch-manipulation">
+        <i class="ph ph-arrow-left"></i> Kembali
+    </a>
+
+    <div class="mt-8 mb-8 border-b border-[#e6e0d6] pb-6">
+        <time datetime="{{ $item->updated_at->toIso8601String() }}"
+            class="block text-[11px] font-bold text-[#a49b8c] uppercase tracking-widest mb-2">
+            {{ $item->updated_at->translatedFormat('j F Y, H:i') }} WIB
+        </time>
+        <h1 class="page-title text-2xl sm:text-[28px] font-bold tracking-tight leading-snug m-0 text-[#1f1c19]">
+            {{ $item->title }}
+        </h1>
+    </div>
+
+    <div class="prose prose-sm md:prose-base max-w-none text-[#1f1c19] leading-relaxed">
+        {!! $item->deskripsi !!}
+    </div>
+    <div class="mt-8 border-t border-[#e6e0d6]">
+        <a href="{{ route('repository') }}"
+            class="mt-4 back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors select-none touch-manipulation">
+            <i class="ph ph-arrow-left"></i> Kembali
+        </a>
+    </div>
+</div>
+@endsection

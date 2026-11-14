@@ -1,0 +1,246 @@
+@extends('layouts.app')
+@section('title', 'Jadwal Pelajaran')
+
+@section('content')
+<style>
+  @@media (min-width: 640px) {
+    .kelas-block-header {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .kelas-block-header .kelas-block-wali {
+      margin-left: auto;
+      padding-left: 1rem;
+      border-left: 1px solid var(--line);
+    }
+  }
+</style>
+<div class="max-w-5xl mx-auto px-5 pt-12 bg-[#faf8f5] text-[#1f1c19]">
+
+  <a href="{{ route('repository') }}"
+    class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors select-none touch-manipulation">
+    <i class="ph ph-arrow-left"></i> Kembali
+  </a>
+
+  <div class="my-8">
+    <h1 class="page-title text-2xl sm:text-[26px] leading-snug m-0">Jadwal Pelajaran (KBM)</h1>
+    <p class="page-sub mt-2 max-w-[46ch]">Pantau jadwal jam, mapel, dan guru pengajar per hari.</p>
+  </div>
+
+  <div class="flex items-center justify-between flex-wrap gap-3 mb-6">
+    <div class="flex items-center gap-3">
+      <button id="prevDay" class="btn-outline w-9 h-9 !px-0">
+        <i class="ph ph-caret-left text-base"></i>
+      </button>
+      <div id="hariLabel" class="mono text-sm font-bold tracking-wide" style="color:var(--ink)"></div>
+      <button id="nextDay" class="btn-outline w-9 h-9 !px-0">
+        <i class="ph ph-caret-right text-base"></i>
+      </button>
+    </div>
+    <button id="todayBtn" class="btn-outline">
+      <i class="ph ph-calendar-check text-base"></i>
+      Hari Ini
+    </button>
+  </div>
+
+  <div class="relative z-0 w-full max-w-sm mb-8">
+    <input type="text" id="filter"
+      class="block py-2.5 px-0 w-full text-sm bg-transparent border-0 border-b appearance-none focus:outline-none focus:ring-0 peer transition-colors duration-150 rounded-none"
+      style="color:var(--ink); border-color:var(--line)" onfocus="this.style.borderColor='var(--accent)'"
+      onblur="this.style.borderColor='var(--line)'" placeholder="Cari kelas, mapel, guru...">
+    <div id="searchCount" class="text-xs mt-2 hidden" style="color:var(--ink-faint)"></div>
+  </div>
+
+  @foreach (\App\Models\JadwalPelajaran::HARI as $hari)
+  <div class="hari-panel space-y-6 sm:space-y-10" data-hari="{{ $hari }}" style="display:none">
+    @php $piketList = $piketPerHari->get($hari, collect()); @endphp
+    @if ($piketList->isNotEmpty())
+    <div class="mb-5 sm:mb-6 pb-3" style="border-bottom:2.5px dashed var(--line)">
+      <div class="eyebrow mb-2 mono text-xs font-bold uppercase" style="color:var(--ink-soft)">Guru Piket</div>
+      <div class="flex flex-wrap gap-1.5 text-sm mb-2">
+        @foreach ($piketList as $nama)
+        <span class="mono text-xs px-2 py-1" style="background:var(--accent-soft); color:var(--ink);">{{ $nama }}</span>
+        @endforeach
+      </div>
+    </div>
+    @endif
+
+    @php $kelasGroups = $jadwalPerHari[$hari] ?? []; @endphp
+    @if (count($kelasGroups) === 0)
+    <div class="page-sub">Tidak ada jadwal.</div>
+    @else
+    @foreach ($kelasGroups as [$kelas, $rowsKelas])
+    <div class="kelas-block" data-kelas="{{ $kelas }}">
+      <div class="mono text-xs font-bold tracking-widest mb-3 pb-2 w-full kelas-block-header"
+        style="color:var(--ink-soft); border-bottom:1px solid var(--line); display:flex; flex-direction:column; align-items:flex-start; gap:.25rem; text-transform:uppercase;">
+        <span>Kelas {{ $kelas }}</span>
+        @php $wali = $waliKelasMap[$kelas] ?? null; @endphp
+        @if ($wali)
+        <span class="kelas-block-wali"
+          style="color:var(--ink); text-transform:none; font-weight:500; letter-spacing:normal;">Wali: {{ $wali }}</span>
+        @endif
+      </div>
+
+      <!-- TABLE: md ke atas -->
+      <div class="hidden md:block idx-list">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="text-left pr-6 py-2 eyebrow whitespace-nowrap w-px">Sesi</th>
+              <th class="text-left pr-6 py-2 eyebrow whitespace-nowrap w-px">Pukul</th>
+              <th class="text-left pr-6 py-2 eyebrow">Mapel</th>
+              <th class="text-left py-2 eyebrow w-1/2">Guru</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach ($rowsKelas as $r)
+            <tr data-row data-count-row="true" style="border-top:1px solid var(--line)">
+              <td class="mono text-xs pr-6 py-3 whitespace-nowrap" style="color:var(--ink-faint)">{{ $r->sesi ?: '-' }}
+              </td>
+              <td class="mono text-xs pr-6 py-3 font-semibold whitespace-nowrap" style="color:var(--ink)">{{ $r->waktu }}
+              </td>
+              <td class="pr-6 py-3 break-words" style="color:var(--ink)">@foreach ($r->mapel_segments as [$segment, $isArabic])@if ($isArabic)<span dir="rtl" style="font-family: var(--font-arabic)">{{ $segment }}</span>@else{{ $segment }}@endif @endforeach</td>
+              <td class="py-3 break-words" style="color:var(--ink-soft)">{{ $r->nama_guru ?: '-' }}</td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+
+      <!-- TABLE: mobile, 2 kolom gabungan -->
+      <div class="md:hidden idx-list">
+        <table class="w-full text-sm table-fixed">
+          <colgroup>
+            <col style="width:30%">
+            <col>
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="text-left pr-3 py-2 eyebrow">Sesi / Pukul</th>
+              <th class="text-left py-2 eyebrow">Mapel / Guru</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach ($rowsKelas as $r)
+            <tr data-row data-count-row="false" style="border-top:1px solid var(--line)">
+              <td class="pr-3 py-2.5 align-top">
+                <div class="mono text-xs font-semibold" style="color:var(--ink)">{{ $r->waktu }}</div>
+                <div class="mono text-[10px]" style="color:var(--ink-faint)">Sesi {{ $r->sesi ?: '-' }}</div>
+              </td>
+              <td class="py-2.5 align-top break-words">
+                <div class="text-sm font-medium" style="color:var(--ink)">@foreach ($r->mapel_segments as [$segment, $isArabic])@if ($isArabic)<span dir="rtl" style="font-family: var(--font-arabic)">{{ $segment }}</span>@else{{ $segment }}@endif @endforeach</div>
+                <div class="text-xs" style="color:var(--ink-soft)">{{ $r->nama_guru ?: '-' }}</div>
+              </td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+    @endforeach
+    @endif
+
+    <div class="empty-state hidden py-10 text-center text-[13px] font-semibold" style="color:var(--ink-faint)">
+      Tidak ditemukan jadwal yang cocok.
+    </div>
+  </div>
+  @endforeach
+
+  <div class="mt-6 py-4 text-center text-[11px] mono" style="border-top:1px solid var(--line); color:var(--ink-faint)">
+    Semua waktu ditampilkan dalam WIB
+  </div>
+</div>
+
+<script>
+  const HARI_LIST = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
+  const panels = document.querySelectorAll('.hari-panel');
+  const hariLabel = document.getElementById('hariLabel');
+  const filterInput = document.getElementById('filter');
+  const searchCount = document.getElementById('searchCount');
+
+  function jsDayToHariIndex(jsDay) {
+    return jsDay === 0 ? 0 : jsDay - 1;
+  }
+
+  let currentIndex = jsDayToHariIndex(new Date().getDay());
+  let debounceTimer;
+
+  function showHari(index) {
+    const hari = HARI_LIST[index];
+    panels.forEach(p => p.style.display = (p.dataset.hari === hari) ? '' : 'none');
+    hariLabel.textContent = hari;
+    applyFilter(); // re-apply filter tiap ganti hari
+  }
+
+  function applyFilter() {
+    const query = filterInput.value.toLowerCase().trim();
+
+    const activePanel = document.querySelector(
+      '.hari-panel[data-hari="' + HARI_LIST[currentIndex] + '"]'
+    );
+
+    if (!activePanel) return;
+
+    const cards = activePanel.querySelectorAll('.kelas-block');
+    const emptyState = activePanel.querySelector('.empty-state');
+
+    let visibleRowsTotal = 0;
+
+    cards.forEach(card => {
+      const rows = card.querySelectorAll('[data-row]');
+      let visibleInCard = 0;
+
+      rows.forEach(row => {
+        const match = !query ||
+          row.textContent.toLowerCase().includes(query);
+
+        row.style.display = match ? '' : 'none';
+
+        // Hanya hitung row desktop.
+        // Row mobile adalah duplikat visual dari data yang sama.
+        if (match && row.dataset.countRow === 'true') {
+          visibleInCard++;
+        }
+      });
+
+      card.style.display = visibleInCard > 0 ? '' : 'none';
+
+      visibleRowsTotal += visibleInCard;
+    });
+
+    if (query) {
+      searchCount.textContent = `Ditemukan ${visibleRowsTotal} data`;
+      searchCount.classList.remove('hidden');
+    } else {
+      searchCount.classList.add('hidden');
+    }
+
+    emptyState.classList.toggle(
+      'hidden',
+      visibleRowsTotal > 0 || cards.length === 0
+    );
+  }
+
+  filterInput.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(applyFilter, 300);
+  });
+
+  document.getElementById('prevDay').addEventListener('click', () => {
+    currentIndex = (currentIndex - 1 + HARI_LIST.length) % HARI_LIST.length;
+    showHari(currentIndex);
+  });
+  document.getElementById('nextDay').addEventListener('click', () => {
+    currentIndex = (currentIndex + 1) % HARI_LIST.length;
+    showHari(currentIndex);
+  });
+  document.getElementById('todayBtn').addEventListener('click', () => {
+    currentIndex = jsDayToHariIndex(new Date().getDay());
+    showHari(currentIndex);
+  });
+
+  showHari(currentIndex);
+</script>
+@endsection
