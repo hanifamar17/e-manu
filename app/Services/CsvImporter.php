@@ -7,6 +7,7 @@ use App\Models\JadwalPelajaran;
 use App\Models\Kelas;
 use App\Models\KalenderAkademik;
 use Illuminate\Support\Facades\DB;
+use App\Models\Inventaris;
 
 /**
  * Impor CSV / XLSX (jenis file dideteksi dari isi, bukan ekstensi).
@@ -20,6 +21,7 @@ class CsvImporter
         'kelas' => 'Kelas + wali kelas',
         'jadwal' => 'Jadwal pelajaran',
         'guru_piket' => 'Guru piket',
+        'inventaris' => 'Database sarpras (inventaris)',
     ];
 
     public const COLUMNS = [
@@ -27,6 +29,7 @@ class CsvImporter
         'kelas' => ['nama_kelas', 'wali_kelas'],
         'jadwal' => ['id', 'hari', 'nama_kelas', 'sesi', 'waktu', 'nama_mapel', 'nama_guru'],
         'guru_piket' => ['hari', 'nama'],
+        'inventaris' => ['id', 'nama_barang', 'merk', 'kondisi', 'lokasi', 'tahun_pengadaan', 'sumber_dana', 'sub_bidang', 'jumlah_total', 'jumlah_dipinjam'],
     ];
 
     public const REQUIRED = [
@@ -34,6 +37,7 @@ class CsvImporter
         'kelas' => ['nama_kelas'],
         'jadwal' => ['hari', 'nama_kelas', 'waktu', 'nama_mapel'],
         'guru_piket' => ['hari', 'nama'],
+        'inventaris' => ['id', 'nama_barang', 'sub_bidang', 'jumlah_total'],
     ];
 
     public const SAMPLES = [
@@ -47,6 +51,10 @@ class CsvImporter
             ['2', 'SENIN', 'X-A', '2', '07.45-08.30', 'Qiroah Kitab: أدب العالم', 'Bu Siti'],
         ],
         'guru_piket' => [['SENIN', 'Pak Budi'], ['SENIN', 'Bu Siti']],
+        'inventaris' => [
+            ['INV-0001', 'Laptop', 'Asus', 'Baik', 'Lab Komputer 1', '2022', 'BOS', 'Lab Komputer', '10', '0'],
+            ['INV-0002', 'Proyektor', 'Epson', 'Rusak Ringan', 'Ruang Guru', '2020', 'Hibah', 'Waka & Guru', '2', '1'],
+        ],
     ];
 
     public const NOTES = [
@@ -54,6 +62,13 @@ class CsvImporter
         'kelas' => ['nama_kelas harus unik'],
         'jadwal' => ['hari: SENIN / SELASA / RABU / KAMIS / JUMAT / SABTU', 'id = urutan sesi (angka)', 'waktu: teks, mis. 07.00-07.45'],
         'guru_piket' => ['hari: SENIN / SELASA / RABU / KAMIS / JUMAT / SABTU'],
+        'inventaris' => [
+            'id = kode barang (INV-0001), jangan diubah: dipakai riwayat peminjaman',
+            'kondisi: Baik / Rusak Ringan / Rusak Berat (kosong = Baik)',
+            'sumber_dana: BOS / BOSDA / Hibah / Lainnya (boleh kosong)',
+            'sub_bidang: Perpustakaan / Lab IPA / Lab Komputer / Asrama / Waka & Guru / Madrasah',
+            'jumlah_dipinjam kosong = 0, tidak boleh lebih dari jumlah_total',
+        ],
     ];
 
     public const DATE_FORMATS = ['Y-m-d' => 'YYYY-MM-DD', 'd/m/Y' => 'DD/MM/YYYY', 'm/d/Y' => 'MM/DD/YYYY'];
@@ -95,6 +110,7 @@ class CsvImporter
             'kelas' => $this->parseKelas($rows),
             'jadwal' => $this->parseJadwal($rows),
             'guru_piket' => $this->parsePiket($rows),
+            'inventaris' => $this->parseInventaris($rows),
         };
 
         if ($errors || ! $valid) {
@@ -107,6 +123,7 @@ class CsvImporter
                 'kelas' => Kelas::class,
                 'jadwal' => JadwalPelajaran::class,
                 'guru_piket' => GuruPiket::class,
+                'inventaris' => Inventaris::class,
             };
             if ($replace) {
                 $model::query()->delete();
@@ -116,6 +133,12 @@ class CsvImporter
                 if ($type === 'kelas' && ! $replace) {
                     foreach ($chunk as $r) {
                         Kelas::updateOrCreate(['nama_kelas' => $r['nama_kelas']], ['wali_kelas' => $r['wali_kelas']]);
+                    }
+                    continue;
+                }
+                if ($type === 'inventaris' && ! $replace) {
+                    foreach ($chunk as $r) {
+                        Inventaris::updateOrCreate(['kode' => $r['kode']], array_diff_key($r, ['kode' => 1]));
                     }
                     continue;
                 }
@@ -345,6 +368,68 @@ class CsvImporter
         return [$ok, $err];
     }
 
+        private function pick(string $v, array $allowed): ?string
+    {
+        foreach ($allowed as $a) {
+            if (strcasecmp($a, trim($v)) === 0) {
+                return $a;
+            }
+        }
+
+        return null;
+    }
+
+    private function parseInventaris(array $rows): array
+    {
+        $ok = $err = $seen = [];
+        foreach ($rows as $n => $r) {
+            $kode = strtoupper($r['id'] ?? '');
+            $nama = $r['nama_barang'] ?? '';
+            $rawKondisi = $r['kondisi'] ?? '';
+            $rawDana = $r['sumber_dana'] ?? '';
+            $kondisi = $rawKondisi === '' ? 'Baik' : $this->pick($rawKondisi, Inventaris::KONDISI);
+            $dana = $rawDana === '' ? null : $this->pick($rawDana, Inventaris::SUMBER_DANA);
+            $bidang = $this->pick($r['sub_bidang'] ?? '', Inventaris::SUB_BIDANG);
+            $tahun = $r['tahun_pengadaan'] ?? '';
+            $total = $r['jumlah_total'] ?? '';
+            $pinjam = ($r['jumlah_dipinjam'] ?? '') === '' ? '0' : $r['jumlah_dipinjam'];
+
+            if ($kode === '' || $nama === '') {
+                $err[] = "Baris {$n}: id / nama_barang kosong.";
+            } elseif (isset($seen[$kode])) {
+                $err[] = "Baris {$n}: id '{$kode}' duplikat.";
+            } elseif (! $kondisi) {
+                $err[] = "Baris {$n}: kondisi '{$rawKondisi}' harus: ".implode('/', Inventaris::KONDISI).'.';
+            } elseif ($rawDana !== '' && ! $dana) {
+                $err[] = "Baris {$n}: sumber_dana '{$rawDana}' harus: ".implode('/', Inventaris::SUMBER_DANA).'.';
+            } elseif (! $bidang) {
+                $err[] = "Baris {$n}: sub_bidang '".($r['sub_bidang'] ?? '')."' harus: ".implode(' / ', Inventaris::SUB_BIDANG).'.';
+            } elseif ($tahun !== '' && (! ctype_digit($tahun) || $tahun < 1990 || $tahun > 2100)) {
+                $err[] = "Baris {$n}: tahun_pengadaan '{$tahun}' tidak valid (1990-2100).";
+            } elseif (! ctype_digit($total) || ! ctype_digit($pinjam)) {
+                $err[] = "Baris {$n}: jumlah_total / jumlah_dipinjam harus angka bulat >= 0.";
+            } elseif ((int) $pinjam > (int) $total) {
+                $err[] = "Baris {$n}: jumlah_dipinjam > jumlah_total.";
+            } else {
+                $seen[$kode] = true;
+                $ok[] = [
+                    'kode' => $kode,
+                    'nama_barang' => $nama,
+                    'merk' => ($r['merk'] ?? '') ?: null,
+                    'kondisi' => $kondisi,
+                    'lokasi' => ($r['lokasi'] ?? '') ?: null,
+                    'tahun_pengadaan' => $tahun === '' ? null : (int) $tahun,
+                    'sumber_dana' => $dana,
+                    'sub_bidang' => $bidang,
+                    'jumlah_total' => (int) $total,
+                    'jumlah_dipinjam' => (int) $pinjam,
+                ];
+            }
+        }
+
+        return [$ok, $err];
+    }
+    
     private function parsePiket(array $rows): array
     {
         $ok = $err = [];

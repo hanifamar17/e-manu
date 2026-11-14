@@ -11,6 +11,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Models\Inventaris;
 
 /** Template .xlsx dibangun dari CsvImporter::COLUMNS => selalu sama dengan format importer. */
 class ExcelTemplate
@@ -70,6 +71,10 @@ class ExcelTemplate
                 $j->urutan, $j->hari, $j->nama_kelas, $j->sesi, $j->waktu, $j->nama_mapel, $j->nama_guru,
             ])->all(),
             'guru_piket' => GuruPiket::orderBy('id')->get()->map(fn ($g) => [$g->hari, $g->nama])->all(),
+            'inventaris' => Inventaris::orderBy('kode')->get()->map(fn ($i) => [
+                $i->kode, $i->nama_barang, $i->merk, $i->kondisi, $i->lokasi, $i->tahun_pengadaan,
+                $i->sumber_dana, $i->sub_bidang, $i->jumlah_total, $i->jumlah_dipinjam,
+            ])->all(),
         };
     }
 }

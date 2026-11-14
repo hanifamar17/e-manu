@@ -45,8 +45,11 @@ class LoginController extends Controller
         RateLimiter::clear($key);
         $request->session()->regenerate();
 
+        // admin -> dashboard, lainnya -> repositori
+        $tujuan = $request->user()->hasRole('admin') ? route('admin.home') : route('repository');
+
         // intended() = URL tujuan disimpan server-side -> tidak ada open redirect
-        return redirect()->intended(route('repository'));
+        return redirect()->intended($tujuan);
     }
 
     public function destroy(Request $request): RedirectResponse

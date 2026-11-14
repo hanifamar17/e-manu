@@ -137,7 +137,7 @@
         <!-- Footer -->
         <div class="mt-4">
             <div class="flex items-center justify-end px-2 py-3.5 md:pt-3.5 border-t border-[#e6e0d6] md:border-t-0">
-                <a id="sidebar-settings-btn" href="{{ \Illuminate\Support\Facades\Route::has('pengumuman.pengumuman_list') ? route('pengumuman.pengumuman_list') : '#' }}"
+                <a id="sidebar-settings-btn" href="{{ auth()->check() && auth()->user()->hasRole('admin') ? route('admin.home') : route('login') }}"
                     class="shrink-0 w-12 h-12 md:w-8 md:h-8 flex items-center justify-center opacity-60 hover:opacity-100 active:opacity-100 active:scale-90 transition-all duration-150 ease-out cursor-pointer touch-manipulation select-none border border-[color:var(--color-ink-faint)] hover:border-[color:var(--color-accent)]"
                     style="color:var(--color-ink-soft);">
                     <i class="fa-solid fa-gear text-[20px] md:text-[15px]"></i>

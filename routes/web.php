@@ -10,6 +10,9 @@ use App\Http\Controllers\PengumumanController;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\PengumumanAdminController;
+use App\Http\Controllers\Admin\InventarisController;
 
 // Nama route sengaja sama dengan endpoint Flask (blueprint.fungsi)
 // supaya konversi url_for('x.y') -> route('x.y') 1:1.
@@ -35,7 +38,7 @@ Route::get('/jadwal-pelajaran', [JadwalPelajaranController::class, 'index'])->na
 
 // --- Admin ---
 Route::middleware(['auth', RoleMiddleware::class.':admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::redirect('/', '/admin/booking')->name('home');
+    Route::get('/', [DashboardController::class, 'index'])->name('home');
 
     Route::get('/booking', [BookingAdminController::class, 'index'])->name('booking.index');
     Route::post('/booking/{booking}/setujui', [BookingAdminController::class, 'setujui'])->name('booking.setujui');
@@ -43,6 +46,8 @@ Route::middleware(['auth', RoleMiddleware::class.':admin'])->prefix('admin')->na
     Route::delete('/booking/{booking}', [BookingAdminController::class, 'destroy'])->name('booking.destroy');
 
     Route::resource('kalender', KalenderAkademikController::class)->except('show');
+    Route::resource('pengumuman', PengumumanAdminController::class)->parameters(['pengumuman' => 'pengumuman'])->except('show');
+    Route::resource('inventaris', InventarisController::class)->parameters(['inventaris' => 'inventaris'])->except('show');
 
     Route::get('/impor', [ImporController::class, 'form'])->name('impor.form');
     Route::post('/impor', [ImporController::class, 'store'])->name('impor.store');

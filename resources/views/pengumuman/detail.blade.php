@@ -19,7 +19,7 @@
     </div>
 
     <div class="prose prose-sm md:prose-base max-w-none text-[#1f1c19] leading-relaxed">
-        {!! $item->deskripsi !!}
+        {!! clean($item->deskripsi, 'quill') !!}
     </div>
     <div class="mt-8 border-t border-[#e6e0d6]">
         <a href="{{ route('repository') }}"

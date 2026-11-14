@@ -3,7 +3,7 @@
 
 @section('content')
 <div class="max-w-4xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
-  <a href="{{ route('admin.booking.index') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">
+  <a href="{{ route('admin.home') }} " class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">
     <i class="ph ph-arrow-left"></i> Kembali
   </a>
   <div class="flex flex-wrap items-end justify-between gap-3 mt-8 mb-6">

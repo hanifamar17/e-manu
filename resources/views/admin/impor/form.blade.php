@@ -7,7 +7,7 @@
     $lbl = 'eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] mb-1 block';
 @endphp
 <div class="max-w-xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
-  <a href="{{ route('admin.booking.index') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">
+  <a href="{{ route('admin.home') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">
     <i class="ph ph-arrow-left"></i> Kembali
   </a>
   <h1 class="page-title text-2xl font-bold mt-8 mb-2">Impor Data</h1>

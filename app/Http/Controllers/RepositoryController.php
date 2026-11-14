@@ -49,7 +49,7 @@ class RepositoryController extends Controller
                     $this->link('Kalender akademik', 'Dokumen kalender akademik', route: 'booking_ruangan.jadwal_penggunaan'),
                     $this->link('Jadwal KBM', 'Jadwal kegiatan belajar mengajar (KBM)', route: 'jadwal_pelajaran.jadwal_pelajaran_landing'),
                     $this->link('Poin Disiplin', 'Formulir pencatatan poin disiplin', url: 'https://script.google.com/macros/s/AKfycbzQtB0i7iIKvb6tEuvHzTVUqt1K5JXRRIRphtKZOAGLHRjmI5Cr9kMTN2ylM5PVmOWZ/exec'),
-                    $this->link('Rapor Digital Madrasah', 'Coming Soon', url: '#', disabled: true),
+                    $this->link('RDM', 'Rapor Digital Madrasah', url: 'https://rapor.manu.sch.id/', disabled: false),
                 ],
             ],
             [
@@ -88,7 +88,7 @@ class RepositoryController extends Controller
                 'icon' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>',
                 'links' => [
                     $this->link('Peminjaman Aset', 'Pengelolaan peminjaman aset madrasah', route: 'inventaris.peminjaman_aset_landing'),
-                    $this->link('Database sarpras', 'Pengelolaan database sarana dan prasarana', route: 'inventaris.list_inventaris'),
+                    $this->link('Database sarpras', 'Pengelolaan database sarana dan prasarana', route: 'admin.inventaris.index'),
                 ],
             ],
             [
@@ -99,6 +99,14 @@ class RepositoryController extends Controller
                     $this->link('Inventaris Lab Komp', 'Master data inventaris lab komputer', route: 'inventory_labkomp.inventory_landing'),
                     $this->link('Peminjaman Barang', 'Pengelolaan peminjaman barang lab komputer', route: 'peminjaman_invlabkomp.peminjaman_landing'),
                     $this->link('Peminjaman Ruangan', 'Pengelolaan peminjaman ruangan lab komputer', route: 'booking_ruangan.booking_landing'),
+                ],
+            ],
+                        [
+                'category' => 'Layanan',
+                'color' => 'teal',
+                'icon' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>',
+                'links' => [
+                    $this->link('Layanan Hotline', 'Layanan hotline internal madrasah', url: 'https://hotline-eight.vercel.app/'),
                 ],
             ],
         ];
