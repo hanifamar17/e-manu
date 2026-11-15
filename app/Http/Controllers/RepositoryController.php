@@ -49,7 +49,7 @@ class RepositoryController extends Controller
                     $this->link('Kalender akademik', 'Dokumen kalender akademik', route: 'booking_ruangan.jadwal_penggunaan'),
                     $this->link('Jadwal KBM', 'Jadwal kegiatan belajar mengajar (KBM)', route: 'jadwal_pelajaran.jadwal_pelajaran_landing'),
                     $this->link('Poin Disiplin', 'Formulir pencatatan poin disiplin', url: 'https://script.google.com/macros/s/AKfycbzQtB0i7iIKvb6tEuvHzTVUqt1K5JXRRIRphtKZOAGLHRjmI5Cr9kMTN2ylM5PVmOWZ/exec'),
-                    $this->link('RDM', 'Rapor Digital Madrasah', url: 'https://rapor.manu.sch.id/', disabled: false),
+                    $this->link('RDM', 'Rapor Digital Madrasah', route: 'rdm'),
                 ],
             ],
             [
@@ -57,7 +57,7 @@ class RepositoryController extends Controller
                 'color' => 'emerald',
                 'icon' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/></svg>',
                 'links' => [
-                    $this->link('Presensi Sekolah', 'Coming Soon', url: '', disabled: true),
+                    $this->link('Presensi Sekolah', 'Formulir presensi kegiatan sekolah', url: 'https://presensi-sekolah.manu.sch.id/', disabled: false),
                     $this->link('Presensi Diniyah', 'Formulir presensi kegiatan kelas diniyyah', url: 'https://script.google.com/macros/s/AKfycbydodNzn3SzN3ekC7jv17PZgoV-7GktfQn3cFyxyEXcFcz1Zv-U5ab3sGBwHxnYojOg/exec'),
                     $this->link('Jurnal Mapel', 'Formulir jurnal kegiatan belajar mengajar mata pelajaran', url: 'https://docs.google.com/forms/d/e/1FAIpQLSdGZ7jXITewg7GQM7zoSLmPEUglqbMj3TwGFGWZ46HuGSCotg/viewform'),
                     $this->link('Supervisi', 'Coming Soon', url: '#', disabled: true),
@@ -87,7 +87,7 @@ class RepositoryController extends Controller
                 'color' => 'rose',
                 'icon' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>',
                 'links' => [
-                    $this->link('Peminjaman Aset', 'Pengelolaan peminjaman aset madrasah', route: 'inventaris.peminjaman_aset_landing'),
+                    $this->link('Peminjaman Aset', 'Pengelolaan peminjaman aset madrasah', route: 'peminjaman.landing'),
                     $this->link('Database sarpras', 'Pengelolaan database sarana dan prasarana', route: 'inventaris.index'),
                 ],
             ],

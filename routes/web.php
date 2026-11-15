@@ -11,6 +11,7 @@ use App\Http\Controllers\JadwalPelajaranController;
 use App\Http\Controllers\PengumumanController;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\InventarisController;
+use App\Http\Controllers\PeminjamanAsetController as PA;
 
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,8 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/repository');
 Route::get('/repository', [RepositoryController::class, 'index'])->name('repository');
 Route::view('/e-labkomp', 'landing')->name('labkomp_landing');
+
+Route::view('/rdm', 'rdm')->name('rdm');
 
 Route::get('/pengumuman/{id}/detail', [PengumumanController::class, 'detail'])
     ->whereNumber('id')->name('pengumuman.pengumuman_detail');
@@ -43,6 +46,25 @@ Route::middleware('auth')->group(function () {
         ->name('inventaris.hapus');
     Route::resource('inventaris', InventarisController::class)
         ->parameters(['inventaris' => 'inventaris'])->except('show');
+});
+
+Route::prefix('peminjaman-aset')->name('peminjaman.')->group(function () {
+    // publik (peminjam)
+    Route::get('/', [PA::class, 'landing'])->name('landing');
+    Route::get('/form', [PA::class, 'form'])->name('form');
+    Route::get('/search-barang', [PA::class, 'searchBarang'])->name('search');
+    Route::post('/submit', [PA::class, 'submit'])->middleware('throttle:10,1')->name('submit');
+    Route::get('/ringkasan/{peminjaman}', [PA::class, 'ringkasan'])->name('ringkasan');
+    Route::post('/ringkasan/{peminjaman}/generate', [PA::class, 'generate'])->middleware('throttle:10,1')->name('generate');
+    Route::get('/ringkasan/{peminjaman}/preview', [PA::class, 'preview'])->name('preview');
+
+    // login-only (petugas)
+    Route::middleware('auth')->group(function () {
+        Route::get('/riwayat', [PA::class, 'riwayat'])->name('riwayat');
+        Route::get('/return', [PA::class, 'returnPage'])->name('return');
+        Route::get('/api/loan', [PA::class, 'apiLoan'])->name('api.loan');
+        Route::post('/return/submit', [PA::class, 'returnSubmit'])->name('return.submit');
+    });
 });
 
 // --- Admin ---
