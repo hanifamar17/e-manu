@@ -1,8 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
-
-use App\Http\Controllers\Controller;
+namespace App\Http\Controllers;
 use App\Models\Inventaris;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +18,7 @@ class InventarisController extends Controller
         $q = $request->query('q');
         $q = is_string($q) ? trim($q) : '';
 
-        return view('admin.inventaris.index', [
+        return view('inventaris.index', [
             'items' => Inventaris::query()
                 ->when($bidang, fn ($x) => $x->where('sub_bidang', Inventaris::BIDANG[$bidang]))
                 ->cari($q)
@@ -33,7 +31,7 @@ class InventarisController extends Controller
 
     public function create(): View
     {
-        return view('admin.inventaris.form', [
+        return view('inventaris.form', [
             'item' => new Inventaris(['kondisi' => 'Baik', 'jumlah_total' => 0]),
         ]);
     }
@@ -44,19 +42,24 @@ class InventarisController extends Controller
         $data['kode'] = Inventaris::nextKode();
         $item = Inventaris::create($data);
 
-        return redirect()->route('admin.inventaris.index')->with('status', "Barang {$item->kode} ditambahkan.");
+        return redirect()->route('inventaris.index')->with('status', "Barang {$item->kode} ditambahkan.");
     }
 
     public function edit(Inventaris $inventaris): View
     {
-        return view('admin.inventaris.form', ['item' => $inventaris]);
+        return view('inventaris.form', ['item' => $inventaris]);
     }
 
     public function update(Request $request, Inventaris $inventaris): RedirectResponse
     {
         $inventaris->update($this->validated($request, $inventaris));
 
-        return redirect()->route('admin.inventaris.index')->with('status', "Barang {$inventaris->kode} disimpan.");
+        return redirect()->route('inventaris.index')->with('status', "Barang {$inventaris->kode} disimpan.");
+    }
+
+    public function konfirmasiHapus(Inventaris $inventaris): View
+    {
+        return view('inventaris.hapus', ['item' => $inventaris]);
     }
 
     public function destroy(Inventaris $inventaris): RedirectResponse
@@ -64,9 +67,10 @@ class InventarisController extends Controller
         if ($inventaris->jumlah_dipinjam > 0) {
             return back()->withErrors(['inventaris' => "Tidak bisa dihapus: masih dipinjam {$inventaris->jumlah_dipinjam} unit."]);
         }
+        $kode = $inventaris->kode;
         $inventaris->delete();
 
-        return back()->with('status', 'Dihapus.');
+        return redirect()->route('inventaris.index')->with('status', "Barang {$kode} dihapus.");
     }
 
     private function validated(Request $request, ?Inventaris $item = null): array

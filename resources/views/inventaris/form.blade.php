@@ -7,14 +7,14 @@
     $lbl = 'eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] mb-1 block';
 @endphp
 <div class="max-w-2xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
-  <a href="{{ route('admin.inventaris.index') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">
+  <a href="{{ route('inventaris.index') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">
     <i class="ph ph-arrow-left"></i> Kembali
   </a>
   <h1 class="page-title text-2xl font-bold mt-8 mb-6">{{ $item->exists ? 'Edit Barang: '.$item->kode : 'Tambah Barang' }}</h1>
 
   @include('partials.flash')
 
-  <form method="POST" action="{{ $item->exists ? route('admin.inventaris.update', $item) : route('admin.inventaris.store') }}" class="space-y-6">
+  <form method="POST" action="{{ $item->exists ? route('inventaris.update', $item) : route('inventaris.store') }}" class="space-y-6">
     @csrf
     @if ($item->exists) @method('PUT') @endif
 

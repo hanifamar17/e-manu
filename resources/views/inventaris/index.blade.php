@@ -8,7 +8,7 @@
     $off = 'text-[var(--ink-soft)]';
 @endphp
 <div class="max-w-5xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
-  <a href="{{ route('admin.home') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">
+  <a href="{{ route('repository') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">
     <i class="ph ph-arrow-left"></i> Kembali
   </a>
 
@@ -18,21 +18,23 @@
       <p class="text-sm text-[var(--ink-soft)] mt-1 mb-0">Master data barang dan ketersediaan stok.</p>
     </div>
     <div class="flex gap-3 text-sm">
-      <a class="underline" href="{{ route('admin.impor.form') }}">Impor</a>
-      <a class="px-3 py-1.5 bg-[var(--ink)] text-[var(--paper)] font-semibold" href="{{ route('admin.inventaris.create') }}">+ Tambah Barang</a>
+      @if (auth()->user()->hasRole('admin'))
+        <a class="underline" href="{{ route('admin.impor.form') }}">Impor</a>
+      @endif
+      <a class="px-3 py-1.5 bg-[var(--ink)] text-[var(--paper)] font-semibold" href="{{ route('inventaris.create') }}">+ Tambah Barang</a>
     </div>
   </div>
 
   @include('partials.flash')
 
   <div class="flex gap-2 mb-6 overflow-x-auto pb-1">
-    <a href="{{ route('admin.inventaris.index', array_filter(['q' => $q])) }}" class="{{ $tab }} {{ ! $bidang ? $on : $off }}">Semua</a>
+    <a href="{{ route('inventaris.index', array_filter(['q' => $q])) }}" class="{{ $tab }} {{ ! $bidang ? $on : $off }}">Semua</a>
     @foreach (\App\Models\Inventaris::BIDANG_LABEL as $slug => $label)
-      <a href="{{ route('admin.inventaris.index', array_filter(['bidang' => $slug, 'q' => $q])) }}" class="{{ $tab }} {{ $bidang === $slug ? $on : $off }}">{{ $label }}</a>
+      <a href="{{ route('inventaris.index', array_filter(['bidang' => $slug, 'q' => $q])) }}" class="{{ $tab }} {{ $bidang === $slug ? $on : $off }}">{{ $label }}</a>
     @endforeach
   </div>
 
-  <form method="GET" action="{{ route('admin.inventaris.index') }}" class="flex items-end gap-3 max-w-sm mb-8">
+  <form method="GET" action="{{ route('inventaris.index') }}" class="flex items-end gap-3 max-w-sm mb-8">
     @if ($bidang)<input type="hidden" name="bidang" value="{{ $bidang }}">@endif
     <input name="q" value="{{ $q }}" placeholder="Cari nama, merk, lokasi, kode..."
       class="flex-1 py-2.5 px-0 text-sm bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0 focus:border-[var(--accent)] rounded-none text-[var(--ink)]">
@@ -66,11 +68,8 @@
               <div class="mono text-[10px] font-bold uppercase tracking-wider {{ $r->status === 'Habis' ? 'text-red-600' : 'text-[var(--accent)]' }}">{{ $r->status }}</div>
             </td>
             <td class="py-3 text-right">
-              <a class="underline text-xs mr-3" href="{{ route('admin.inventaris.edit', $r) }}">Edit</a>
-              <form method="POST" action="{{ route('admin.inventaris.destroy', $r) }}" class="inline" onsubmit="return confirm('Hapus barang ini?')">
-                @csrf @method('DELETE')
-                <button class="text-xs text-red-600">Hapus</button>
-              </form>
+              <a class="underline text-xs mr-3" href="{{ route('inventaris.edit', $r) }}">Edit</a>
+              <a class="text-xs text-red-600" href="{{ route('inventaris.hapus', $r) }}">Hapus</a>
             </td>
           </tr>
         @empty

@@ -3,16 +3,17 @@
 use App\Http\Controllers\Admin\BookingAdminController;
 use App\Http\Controllers\Admin\ImporController;
 use App\Http\Controllers\Admin\KalenderAkademikController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\PengumumanAdminController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BookingRuanganController;
 use App\Http\Controllers\JadwalPelajaranController;
 use App\Http\Controllers\PengumumanController;
 use App\Http\Controllers\RepositoryController;
+use App\Http\Controllers\InventarisController;
+
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\PengumumanAdminController;
-use App\Http\Controllers\Admin\InventarisController;
 
 // Nama route sengaja sama dengan endpoint Flask (blueprint.fungsi)
 // supaya konversi url_for('x.y') -> route('x.y') 1:1.
@@ -36,6 +37,14 @@ Route::prefix('booking-ruangan')->name('booking_ruangan.')->group(function () {
 // --- Langkah 5: jadwal pelajaran (publik). /kelas/<nama> & /hari/<hari> dihapus: landing sudah memuat semua. ---
 Route::get('/jadwal-pelajaran', [JadwalPelajaranController::class, 'index'])->name('jadwal_pelajaran.jadwal_pelajaran_landing');
 
+// Sarpras
+Route::middleware('auth')->group(function () {
+    Route::get('inventaris/{inventaris}/hapus', [InventarisController::class, 'konfirmasiHapus'])
+        ->name('inventaris.hapus');
+    Route::resource('inventaris', InventarisController::class)
+        ->parameters(['inventaris' => 'inventaris'])->except('show');
+});
+
 // --- Admin ---
 Route::middleware(['auth', RoleMiddleware::class.':admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('home');
@@ -47,7 +56,6 @@ Route::middleware(['auth', RoleMiddleware::class.':admin'])->prefix('admin')->na
 
     Route::resource('kalender', KalenderAkademikController::class)->except('show');
     Route::resource('pengumuman', PengumumanAdminController::class)->parameters(['pengumuman' => 'pengumuman'])->except('show');
-    Route::resource('inventaris', InventarisController::class)->parameters(['inventaris' => 'inventaris'])->except('show');
 
     Route::get('/impor', [ImporController::class, 'form'])->name('impor.form');
     Route::post('/impor', [ImporController::class, 'store'])->name('impor.store');

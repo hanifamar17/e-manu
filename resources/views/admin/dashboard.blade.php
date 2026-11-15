@@ -7,7 +7,7 @@
         ['route' => 'admin.booking.index',  'icon' => 'ph-calendar-check', 'judul' => 'Booking Ruangan',   'desc' => 'Setujui / tolak pengajuan'],
         ['route' => 'admin.kalender.index', 'icon' => 'ph-calendar-dots',  'judul' => 'Kalender Akademik', 'desc' => 'Tambah, ubah, hapus agenda'],
         ['route' => 'admin.impor.form',     'icon' => 'ph-upload-simple',  'judul' => 'Impor Data',        'desc' => 'Jadwal & kalender (xlsx / CSV)'],
-                ['route' => 'admin.pengumuman.index', 'icon' => 'ph-megaphone', 'judul' => 'Pengumuman', 'desc' => 'Tambah, ubah, hapus pengumuman'],
+        ['route' => 'admin.pengumuman.index', 'icon' => 'ph-megaphone', 'judul' => 'Pengumuman', 'desc' => 'Tambah, ubah, hapus pengumuman'],
     ];
 @endphp
 <div class="max-w-5xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
