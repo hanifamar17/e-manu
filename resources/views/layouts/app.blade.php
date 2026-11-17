@@ -26,6 +26,10 @@
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    <!-- Notyf: notifikasi toast -->
+    <link rel="stylesheet" href="{{ asset('vendor/notyf/notyf.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('vendor/notyf/notyf-emanu.css') }}">
+
     <!-- Phosphor Icons (outline, satu keluarga ikon konsisten) -->
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 
@@ -147,6 +151,9 @@
         });
     </script>
     @yield('scripts')
+
+    <script src="{{ asset('vendor/notyf/notyf.min.js') }}"></script>
+    <script src="{{ asset('vendor/notyf/notyf-emanu.js') }}"></script>
 </body>
 
 </html>

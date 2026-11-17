@@ -2,11 +2,6 @@
 @section('title', 'Admin: Database Sarpras')
 
 @section('content')
-@php
-    $tab = 'shrink-0 inline-flex items-center mono text-[11px] font-bold uppercase tracking-widest px-4 py-2 border border-[var(--line)]';
-    $on = 'bg-[var(--ink)] text-[var(--paper)]';
-    $off = 'text-[var(--ink-soft)]';
-@endphp
 <div class="max-w-5xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
   <a href="{{ route('repository') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">
     <i class="ph ph-arrow-left"></i> Kembali
@@ -27,12 +22,7 @@
 
   @include('partials.flash')
 
-  <div class="flex gap-2 mb-6 overflow-x-auto pb-1">
-    <a href="{{ route('inventaris.index', array_filter(['q' => $q])) }}" class="{{ $tab }} {{ ! $bidang ? $on : $off }}">Semua</a>
-    @foreach (\App\Models\Inventaris::BIDANG_LABEL as $slug => $label)
-      <a href="{{ route('inventaris.index', array_filter(['bidang' => $slug, 'q' => $q])) }}" class="{{ $tab }} {{ $bidang === $slug ? $on : $off }}">{{ $label }}</a>
-    @endforeach
-  </div>
+  @include('partials.sarpras_tabs', ['active' => $bidang ?: 'semua', 'q' => $q])
 
   <form method="GET" action="{{ route('inventaris.index') }}" class="flex items-end gap-3 max-w-sm mb-8">
     @if ($bidang)<input type="hidden" name="bidang" value="{{ $bidang }}">@endif

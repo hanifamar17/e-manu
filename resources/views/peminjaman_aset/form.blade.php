@@ -9,13 +9,13 @@
 <div class="max-w-3xl mx-auto px-5 pt-12 pb-20 bg-[#faf8f5] text-[#1f1c19]">
   <a href="{{ route('peminjaman.landing') }}" class="text-sm font-semibold text-[#a49b8c] hover:text-[#1f1c19]">&larr; Kembali</a>
   <h1 class="text-2xl font-bold tracking-tight mt-8">Formulir Peminjaman Aset</h1>
-  <p class="text-sm text-[#6b6459] mt-2 mb-10 max-w-[52ch]">Pilih inventaris, lengkapi data peminjam, lalu kirim. Ringkasan bisa dicek setelah dikirim.</p>
+  <p class="text-sm text-[#6b6459] mt-2 mb-10 max-w-[52ch]">Pilih barang, lengkapi data peminjam, lalu kirim. Ringkasan bisa dicek setelah dikirim.</p>
 
   <form id="borrowForm" class="space-y-14" novalidate>
     @csrf
 
     <section>
-      <h2 class="text-[13px] font-bold uppercase tracking-wide border-b border-[#e6e0d6] pb-2 mb-6">01 · Pilih Inventaris</h2>
+      <h2 class="text-[13px] font-bold uppercase tracking-wide border-b border-[#e6e0d6] pb-2 mb-6">01 · Pilih Barang</h2>
       <div class="relative mb-6">
         <input type="text" id="searchItem" placeholder="Cari barang, merk, atau lokasi..." class="{{ $inp }}" autocomplete="off">
         <div id="searchResult" class="hidden absolute z-30 w-full mt-2 bg-white border border-[#e6e0d6] shadow-sm p-1"></div>
@@ -64,7 +64,6 @@
     </section>
 
     <div>
-      <div id="status" class="hidden text-sm font-medium p-3 mb-4 border"></div>
       <button type="submit" id="btnSubmit" class="w-full py-3.5 bg-[#1f1c19] text-[#faf8f5] text-xs font-bold uppercase tracking-widest hover:bg-[#a8501f] disabled:opacity-60 disabled:cursor-not-allowed">Kirim Peminjaman</button>
     </div>
   </form>
@@ -77,13 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = $('borrowForm'), box = $('searchResult'), input = $('searchItem');
   let selected = [], timer;
 
-  const notify = (msg, ok = false) => {
-    const s = $('status');
-    s.textContent = msg;
-    s.className = 'text-sm font-medium p-3 mb-4 border ' + (ok
-      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-      : 'bg-rose-50 text-rose-800 border-rose-200');
-  };
+  const notify = (msg, ok = false) => emanuNotify(msg, ok);
 
   input.addEventListener('input', e => {
     clearTimeout(timer);
@@ -161,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const out = await res.json();
       if (res.ok && out.success) {
         notify(out.message, true);
-        window.location.href = out.ringkasan_url;
+        setTimeout(() => { window.location.href = out.ringkasan_url; }, 700);
         return;
       }
       const first = out.errors ? Object.values(out.errors)[0][0] : null;

@@ -10,7 +10,7 @@ class PeminjamanItem extends Model
     protected $table = 'peminjaman_item';
 
     protected $fillable = [
-        'peminjaman_id', 'inventaris_id', 'no', 'nama_barang', 'merk', 'jumlah',
+        'peminjaman_id', 'barang_pinjaman_id', 'no', 'nama_barang', 'merk', 'jumlah',
         'kondisi', 'dikembalikan', 'tgl_dikembalikan', 'catatan_kembali',
     ];
 

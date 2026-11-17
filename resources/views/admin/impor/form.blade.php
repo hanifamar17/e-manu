@@ -38,7 +38,7 @@
       <label class="{{ $lbl }}" for="type">Data</label>
       <select class="{{ $inp }}" id="type" name="type" required>
         @foreach ($types as $k => $label)
-          <option value="{{ $k }}" @selected(old('type') === $k)>{{ $label }}</option>
+        <option value="{{ $k }}" @selected(old('type', request('type')) === $k)>{{ $label }}</option>
         @endforeach
       </select>
     </div>

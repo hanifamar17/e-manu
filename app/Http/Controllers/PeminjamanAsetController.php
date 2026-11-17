@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Inventaris;
+use App\Models\BarangPinjaman;
 use App\Models\Peminjaman;
 use Dompdf\Dompdf;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -41,7 +41,7 @@ class PeminjamanAsetController extends Controller
         }
         $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q) . '%';
 
-        $items = Inventaris::query()
+        $items = BarangPinjaman::query()
             ->where(fn ($w) => $w->where('nama_barang', 'like', $like)
                 ->orWhere('merk', 'like', $like)
                 ->orWhere('lokasi', 'like', $like))
@@ -80,7 +80,7 @@ class PeminjamanAsetController extends Controller
             'nama_petugas' => 'required|string|max:150',
             'jenis_identitas_jaminan' => 'nullable|in:KTP,SIM',
             'barang_id' => 'required|array|min:1',
-            'barang_id.*' => 'required|integer|exists:inventaris,id',
+            'barang_id.*' => 'required|integer|exists:barang_pinjaman,id',
             'barang_jumlah' => 'required|array',
             'barang_jumlah.*' => 'required|integer|min:1',
         ], [
@@ -128,7 +128,7 @@ class PeminjamanAsetController extends Controller
 
     private function createLoan(array $fields, array $want): Peminjaman
     {
-        $inv = Inventaris::whereIn('id', array_keys($want))->lockForUpdate()->get()->keyBy('id');
+        $inv = BarangPinjaman::whereIn('id', array_keys($want))->lockForUpdate()->get()->keyBy('id');
 
         foreach ($want as $id => $qty) {
             $item = $inv->get($id);
@@ -152,7 +152,7 @@ class PeminjamanAsetController extends Controller
         foreach ($want as $id => $qty) {
             $item = $inv[$id];
             $p->items()->create([
-                'inventaris_id' => $item->id,
+                'barang_pinjaman_id' => $item->id,
                 'no' => $no++,
                 'nama_barang' => $item->nama_barang,   // snapshot dari DB, bukan dari input klien
                 'merk' => $item->merk,
@@ -292,8 +292,8 @@ class PeminjamanAsetController extends Controller
                     'tgl_dikembalikan' => now(),
                     'catatan_kembali' => $r->input('catatan'),
                 ]);
-                if ($it->inventaris_id) {
-                    Inventaris::whereKey($it->inventaris_id)->update([
+                if ($it->barang_pinjaman_id) {
+                    BarangPinjaman::whereKey($it->barang_pinjaman_id)->update([
                         'jumlah_dipinjam' => DB::raw('GREATEST(jumlah_dipinjam - ' . (int) $it->jumlah . ', 0)'),
                     ]);
                 }

@@ -77,11 +77,14 @@
 </div>
 
 @unless ($p->pdf_path)
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('generateForm'), cb = document.getElementById('setuju'),
-        btn = document.getElementById('btnGenerate'), st = document.getElementById('status');
-  const show = (m, ok) => { st.textContent = m; st.className = 'text-xs font-medium p-3 border ' + (ok ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'); };
+        btn = document.getElementById('btnGenerate');
+  
+  const show = (m, ok) => emanuNotify(m, ok);
+  
   cb.addEventListener('change', () => { btn.disabled = !cb.checked; });
   form.addEventListener('submit', async e => {
     e.preventDefault();

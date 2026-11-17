@@ -11,6 +11,7 @@ use App\Http\Controllers\JadwalPelajaranController;
 use App\Http\Controllers\PengumumanController;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\InventarisController;
+use App\Http\Controllers\BarangPinjamanController;
 use App\Http\Controllers\PeminjamanAsetController as PA;
 
 use App\Http\Middleware\RoleMiddleware;
@@ -46,6 +47,12 @@ Route::middleware('auth')->group(function () {
         ->name('inventaris.hapus');
     Route::resource('inventaris', InventarisController::class)
         ->parameters(['inventaris' => 'inventaris'])->except('show');
+
+    Route::get('barang-pinjaman/{barang_pinjaman}/hapus', [BarangPinjamanController::class, 'konfirmasiHapus'])
+        ->name('barang_pinjaman.hapus');
+    Route::resource('barang-pinjaman', BarangPinjamanController::class)
+        ->parameters(['barang-pinjaman' => 'barang_pinjaman'])
+        ->names('barang_pinjaman')->except('show');
 });
 
 Route::prefix('peminjaman-aset')->name('peminjaman.')->group(function () {

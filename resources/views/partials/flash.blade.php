@@ -1,9 +1,3 @@
-@if (session('status'))
-    <div class="mb-6 border-l-2 border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--ink)]">{{ session('status') }}</div>
-@endif
-@if (session('warning'))
-    <div class="mb-6 border-l-2 border-[#D4A373] px-4 py-3 text-sm text-[var(--ink)]">{{ session('warning') }}</div>
-@endif
 @if ($errors->any())
     <div class="mb-6 border-l-2 border-red-600 px-4 py-3 text-sm text-[var(--ink)]">
         <ul class="m-0 pl-4 list-disc">
@@ -22,4 +16,12 @@
             @endforeach
         </ul>
     </div>
+@endif
+@if (session('status') || session('warning'))
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    @if (session('status')) emanuNotify(@json(session('status')), true); @endif
+    @if (session('warning')) emanuWarn(@json(session('warning'))); @endif
+  });
+</script>
 @endif

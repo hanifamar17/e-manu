@@ -9,5 +9,8 @@
     "@tailwindcss/cli": "^4",
     "@tailwindcss/typography": "^0.5",
     "tailwindcss": "^4"
+  },
+  "dependencies": {
+    "notyf": "^3.10.0"
   }
 }

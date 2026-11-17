@@ -8,6 +8,7 @@ use App\Models\Kelas;
 use App\Models\KalenderAkademik;
 use Illuminate\Support\Facades\DB;
 use App\Models\Inventaris;
+use App\Models\BarangPinjaman;
 
 /**
  * Impor CSV / XLSX (jenis file dideteksi dari isi, bukan ekstensi).
@@ -22,6 +23,7 @@ class CsvImporter
         'jadwal' => 'Jadwal pelajaran',
         'guru_piket' => 'Guru piket',
         'inventaris' => 'Database sarpras (inventaris)',
+        'barang_pinjaman' => 'Barang pinjaman (Peminjaman Aset)',
     ];
 
     public const COLUMNS = [
@@ -30,6 +32,7 @@ class CsvImporter
         'jadwal' => ['id', 'hari', 'nama_kelas', 'sesi', 'waktu', 'nama_mapel', 'nama_guru'],
         'guru_piket' => ['hari', 'nama'],
         'inventaris' => ['id', 'nama_barang', 'merk', 'kondisi', 'lokasi', 'tahun_pengadaan', 'sumber_dana', 'sub_bidang', 'jumlah_total', 'jumlah_dipinjam'],
+        'barang_pinjaman' => ['id', 'nama_barang', 'merk', 'kondisi', 'lokasi', 'tahun_pengadaan', 'sumber_dana', 'sub_bidang', 'jumlah_total'],
     ];
 
     public const REQUIRED = [
@@ -38,6 +41,7 @@ class CsvImporter
         'jadwal' => ['hari', 'nama_kelas', 'waktu', 'nama_mapel'],
         'guru_piket' => ['hari', 'nama'],
         'inventaris' => ['id', 'nama_barang', 'sub_bidang', 'jumlah_total'],
+        'barang_pinjaman' => ['id', 'nama_barang', 'sub_bidang', 'jumlah_total'],
     ];
 
     public const SAMPLES = [
@@ -55,6 +59,10 @@ class CsvImporter
             ['INV-0001', 'Laptop', 'Asus', 'Baik', 'Lab Komputer 1', '2022', 'BOS', 'Lab Komputer', '10', '0'],
             ['INV-0002', 'Proyektor', 'Epson', 'Rusak Ringan', 'Ruang Guru', '2020', 'Hibah', 'Waka & Guru', '2', '1'],
         ],
+        'barang_pinjaman' => [
+            ['PJM-0001', 'Proyektor', 'Epson', 'Baik', 'Ruang Guru', '2020', 'Hibah', 'Waka & Guru', '2'],
+            ['PJM-0002', 'Sound System', 'Huper', 'Baik', 'Madrasah', '2022', 'BOS', 'Madrasah', '3'],
+        ],
     ];
 
     public const NOTES = [
@@ -68,6 +76,14 @@ class CsvImporter
             'sumber_dana: BOS / BOSDA / Hibah / Lainnya (boleh kosong)',
             'sub_bidang: Perpustakaan / Lab IPA / Lab Komputer / Asrama / Waka & Guru / Madrasah',
             'jumlah_dipinjam kosong = 0, tidak boleh lebih dari jumlah_total',
+        ],
+        'barang_pinjaman' => [
+            'id = kode barang pinjaman (PJM-0001), maks 20 karakter, jangan diubah: dipakai riwayat peminjaman',
+            'kondisi: Baik / Rusak Ringan / Rusak Berat (kosong = Baik)',
+            'sumber_dana: BOS / BOSDA / Hibah / Lainnya (boleh kosong)',
+            'sub_bidang: Perpustakaan / Lab IPA / Lab Komputer / Asrama / Waka & Guru / Madrasah',
+            'stok dipinjam diisi otomatis oleh sistem, tidak ada di file',
+            'mode Ganti ditolak kalau ada barang yang masih dipinjam: pakai mode Tambah',
         ],
     ];
 
@@ -111,10 +127,15 @@ class CsvImporter
             'jadwal' => $this->parseJadwal($rows),
             'guru_piket' => $this->parsePiket($rows),
             'inventaris' => $this->parseInventaris($rows),
+            'barang_pinjaman' => $this->parseInventaris($rows),
         };
 
         if ($errors || ! $valid) {
             return ['inserted' => 0, 'errors' => $errors ?: ['Tidak ada baris data.']];
+        }
+
+        if ($type === 'barang_pinjaman' && ($guard = $this->guardBarangPinjaman($valid, $replace))) {
+            return ['inserted' => 0, 'errors' => $guard];
         }
 
         DB::transaction(function () use ($type, $valid, $replace) {
@@ -124,6 +145,7 @@ class CsvImporter
                 'jadwal' => JadwalPelajaran::class,
                 'guru_piket' => GuruPiket::class,
                 'inventaris' => Inventaris::class,
+                'barang_pinjaman' => BarangPinjaman::class,
             };
             if ($replace) {
                 $model::query()->delete();
@@ -139,6 +161,13 @@ class CsvImporter
                 if ($type === 'inventaris' && ! $replace) {
                     foreach ($chunk as $r) {
                         Inventaris::updateOrCreate(['kode' => $r['kode']], array_diff_key($r, ['kode' => 1]));
+                    }
+                    continue;
+                }
+                if ($type === 'barang_pinjaman' && ! $replace) {
+                    foreach ($chunk as $r) {
+                        // jumlah_dipinjam tidak disentuh: hitungan pinjam hidup di sistem
+                        BarangPinjaman::updateOrCreate(['kode' => $r['kode']], array_diff_key($r, ['kode' => 1, 'jumlah_dipinjam' => 1]));
                     }
                     continue;
                 }
@@ -428,6 +457,29 @@ class CsvImporter
         }
 
         return [$ok, $err];
+    }
+    
+        private function guardBarangPinjaman(array $valid, bool $replace): array
+    {
+        if ($replace) {
+            $n = BarangPinjaman::where('jumlah_dipinjam', '>', 0)->count();
+
+            return $n ? ["Mode Ganti ditolak: {$n} barang pinjaman masih dipinjam. Pakai mode Tambah."] : [];
+        }
+
+        $dipinjam = BarangPinjaman::pluck('jumlah_dipinjam', 'kode');
+        $err = [];
+        foreach ($valid as $r) {
+            if (strlen($r['kode']) > 20) {
+                $err[] = "id '{$r['kode']}' lebih dari 20 karakter.";
+            }
+            $d = $dipinjam[$r['kode']] ?? 0;
+            if ($r['jumlah_total'] < $d) {
+                $err[] = "{$r['kode']}: jumlah_total {$r['jumlah_total']} < sedang dipinjam {$d}.";
+            }
+        }
+
+        return $err;
     }
     
     private function parsePiket(array $rows): array

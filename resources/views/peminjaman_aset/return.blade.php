@@ -44,6 +44,18 @@
   </div>
 </div>
 
+<dialog id="confirmDlg" class="m-auto w-[calc(100%-2.5rem)] max-w-sm p-0 bg-[#faf8f5] text-[#1f1c19] border border-[#e6e0d6] shadow-xl">
+  <form method="dialog" class="p-6">
+    <p class="text-[11px] font-bold uppercase tracking-widest text-[#a8501f] mb-2">Konfirmasi</p>
+    <h2 class="text-lg font-bold tracking-tight m-0">Proses pengembalian?</h2>
+    <p id="cmText" class="text-sm text-[#6b6459] mt-2 mb-6">Pastikan fisik barang sesuai.</p>
+    <div class="flex gap-3">
+      <button value="cancel" class="flex-1 py-3 text-[13px] font-semibold border border-[#e6e0d6] hover:bg-[#f3f0ea]">Batal</button>
+      <button value="ok" class="flex-1 py-3 text-[13px] font-semibold bg-[#1f1c19] text-[#faf8f5] hover:bg-[#a8501f]">Ya, Selesaikan</button>
+    </div>
+  </form>
+</dialog>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const $ = id => document.getElementById(id);
@@ -51,7 +63,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const token = document.querySelector('input[name=_token]').value;
   let loan = null, timer;
 
-  const show = (m, ok) => { const s = $('status'); s.textContent = m; s.className = 'text-xs font-medium p-3 border ' + (ok ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'); };
+  const show = (m, ok = true) => emanuNotify(m, ok);
+
+  const dlg = $('confirmDlg');
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close('cancel'); });   // klik luar = batal
+  const confirmReturn = () => new Promise(resolve => {
+    const done = () => { dlg.removeEventListener('close', done); resolve(dlg.returnValue === 'ok'); };
+    dlg.addEventListener('close', done);
+    dlg.returnValue = '';
+    dlg.showModal();
+  });
 
   $('loanCode').addEventListener('input', e => {
     e.target.value = e.target.value.toUpperCase();
@@ -87,7 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   $('btnReturn').addEventListener('click', async () => {
-    if (!loan || !confirm('Proses pengembalian? Pastikan fisik barang sesuai.')) return;
+    if (!loan) return;
+    $('cmText').textContent = `${loan.borrower_name} · ${loan.items.filter(i => !i.dikembalikan).length} barang. Pastikan fisik barang sesuai.`;
+    if (!(await confirmReturn())) return;
+
     const btn = $('btnReturn');
     btn.disabled = true; btn.textContent = 'Memproses...';
     const fd = new FormData();
