@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\GuruPiket;
 use App\Models\JadwalPelajaran;
 use App\Models\Kelas;
+use App\Models\Siswa;
 use App\Models\KalenderAkademik;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -67,7 +68,10 @@ class ExcelTemplate
                 $k->tanggal_selesai->eq($k->tanggal_mulai) ? '' : $k->tanggal_selesai->format('d-m-Y'),
                 $k->keterangan, $k->kategori,
             ])->all(),
-            'kelas' => Kelas::orderBy('nama_kelas')->get()->map(fn ($k) => [$k->nama_kelas, $k->wali_kelas])->all(),
+            'kelas' => Kelas::orderBy('nama_kelas')->get()->map(fn ($k) => [$k->nama_kelas, $k->wali_kelas, $k->no_hp])->all(),
+            'siswa' => Siswa::orderBy('kelas_umum')->orderBy('nama_siswa')->get()->map(fn ($x) => [
+                $x->nisn, $x->nama_siswa, $x->jenis_kelamin, $x->kelas_umum, $x->kelas_diniyyah, $x->tahun_masuk,
+            ])->all(),
             'jadwal' => JadwalPelajaran::orderBy('urutan')->orderBy('id')->get()->map(fn ($j) => [
                 $j->urutan, $j->hari, $j->nama_kelas, $j->sesi, $j->waktu, $j->nama_mapel, $j->nama_guru,
             ])->all(),

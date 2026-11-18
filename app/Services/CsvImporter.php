@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Inventaris;
 use App\Models\BarangPinjaman;
 use App\Models\LabkompItem;
+use App\Models\Siswa;
 use App\Models\LabkompPeminjaman;
 use App\Models\LabkompPeminjamanItem;
 use Illuminate\Support\Str;
@@ -23,7 +24,8 @@ class CsvImporter
 {
     public const TYPES = [
         'kalender' => 'Kalender akademik',
-        'kelas' => 'Kelas + wali kelas',
+        'kelas' => 'Kelas + wali kelas (+ no HP)',
+        'siswa' => 'Data siswa',
         'jadwal' => 'Jadwal pelajaran',
         'guru_piket' => 'Guru piket',
         'inventaris' => 'Database sarpras (inventaris)',
@@ -34,7 +36,8 @@ class CsvImporter
 
     public const COLUMNS = [
         'kalender' => ['tanggal_mulai', 'tanggal_selesai', 'keterangan', 'kategori'],
-        'kelas' => ['nama_kelas', 'wali_kelas'],
+        'kelas' => ['nama_kelas', 'wali_kelas', 'no_hp'],
+        'siswa' => ['nisn', 'nama_siswa', 'jenis_kelamin', 'kelas_umum', 'kelas_diniyyah', 'tahun_masuk'],
         'jadwal' => ['id', 'hari', 'nama_kelas', 'sesi', 'waktu', 'nama_mapel', 'nama_guru'],
         'guru_piket' => ['hari', 'nama'],
         'inventaris' => ['id', 'nama_barang', 'merk', 'kondisi', 'lokasi', 'tahun_pengadaan', 'sumber_dana', 'sub_bidang', 'jumlah_total', 'jumlah_dipinjam'],
@@ -47,6 +50,7 @@ class CsvImporter
     public const REQUIRED = [
         'kalender' => ['tanggal_mulai', 'keterangan', 'kategori'],
         'kelas' => ['nama_kelas'],
+        'siswa' => ['nisn', 'nama_siswa', 'jenis_kelamin', 'kelas_umum'],
         'jadwal' => ['hari', 'nama_kelas', 'waktu', 'nama_mapel'],
         'guru_piket' => ['hari', 'nama'],
         'inventaris' => ['nama_barang', 'sub_bidang', 'jumlah_total'],
@@ -59,6 +63,7 @@ class CsvImporter
     public const SAMPLES = [
         'kalender' => [],
         'kelas' => [],
+        'siswa' => [],
         'jadwal' => [],
         'guru_piket' => [],
         'inventaris' => [],
@@ -69,7 +74,16 @@ class CsvImporter
 
     public const NOTES = [
         'kalender' => ['kategori: libur / agenda / akademik', 'tanggal_selesai kosong = 1 hari', 'tanggal: tulis DD-MM-YYYY, mis. 17-08-2026'],
-        'kelas' => ['nama_kelas harus unik'],
+        'kelas' => [
+            'nama_kelas harus unik',
+            'no_hp wali kelas: boleh kosong; tulis 08xx / +628xx / 628xx, disimpan sebagai 628xx',
+        ],
+        'siswa' => [
+            'Impor KELAS dulu: kelas_umum harus cocok dengan nama_kelas (10 = X, 11 = XI, 12 = XII; spasi & huruf besar/kecil diabaikan, mis. "11 SOS1" = "XI SOS 1")',
+            'nisn: angka, unik. jenis_kelamin: L / P',
+            'kelas_diniyyah: teks/angka bebas (boleh kosong). tahun_masuk: 2000-2100 (boleh kosong)',
+            'mode Ganti = hapus semua siswa lalu isi ulang; mode Tambah = update per nisn',
+        ],
         'jadwal' => ['hari: SENIN / SELASA / RABU / KAMIS / JUMAT / SABTU', 'id = urutan sesi (angka)', 'waktu: teks, mis. 07.00-07.45'],
         'guru_piket' => ['hari: SENIN / SELASA / RABU / KAMIS / JUMAT / SABTU'],
         'inventaris' => [
@@ -146,6 +160,7 @@ class CsvImporter
         [$valid, $errors] = match ($type) {
             'kalender' => $this->parseKalender($rows, $dateFormat),
             'kelas' => $this->parseKelas($rows),
+            'siswa' => $this->parseSiswa($rows),
             'jadwal' => $this->parseJadwal($rows),
             'guru_piket' => $this->parsePiket($rows),
             'inventaris' => $this->parseInventaris($rows),
@@ -170,6 +185,7 @@ class CsvImporter
             $model = match ($type) {
                 'kalender' => KalenderAkademik::class,
                 'kelas' => Kelas::class,
+                'siswa' => Siswa::class,
                 'jadwal' => JadwalPelajaran::class,
                 'guru_piket' => GuruPiket::class,
                 'inventaris' => Inventaris::class,
@@ -193,7 +209,13 @@ class CsvImporter
             foreach (array_chunk($valid, 200) as $chunk) {
                 if ($type === 'kelas' && ! $replace) {
                     foreach ($chunk as $r) {
-                        Kelas::updateOrCreate(['nama_kelas' => $r['nama_kelas']], ['wali_kelas' => $r['wali_kelas']]);
+                        Kelas::updateOrCreate(['nama_kelas' => $r['nama_kelas']], ['wali_kelas' => $r['wali_kelas'], 'no_hp' => $r['no_hp']]);
+                    }
+                    continue;
+                }
+                if ($type === 'siswa' && ! $replace) {
+                    foreach ($chunk as $r) {
+                        Siswa::updateOrCreate(['nisn' => $r['nisn']], array_diff_key($r, ['nisn' => 1]));
                     }
                     continue;
                 }
@@ -401,9 +423,55 @@ class CsvImporter
                 $err[] = "Baris {$n}: nama_kelas kosong.";
             } elseif (isset($seen[$nama])) {
                 $err[] = "Baris {$n}: nama_kelas '{$nama}' duplikat.";
+            } elseif (($r['no_hp'] ?? '') !== '' && KelasMatcher::hp($r['no_hp']) === null) {
+                $err[] = "Baris {$n}: no_hp '{$r['no_hp']}' tidak valid (10-15 digit, mis. 081234567890).";
             } else {
                 $seen[$nama] = true;
-                $ok[] = ['nama_kelas' => $nama, 'wali_kelas' => ($r['wali_kelas'] ?? '') ?: null];
+                $ok[] = ['nama_kelas' => $nama, 'wali_kelas' => ($r['wali_kelas'] ?? '') ?: null, 'no_hp' => KelasMatcher::hp($r['no_hp'] ?? '')];
+            }
+        }
+
+        return [$ok, $err];
+    }
+
+    private function parseSiswa(array $rows): array
+    {
+        $kelasKey = [];
+        foreach (Kelas::pluck('nama_kelas') as $k) {
+            $kelasKey[KelasMatcher::key($k)] = $k;
+        }
+
+        $ok = $err = $seen = [];
+        foreach ($rows as $n => $r) {
+            $nisn = $r['nisn'] ?? '';
+            $nama = $r['nama_siswa'] ?? '';
+            $jk = strtoupper($r['jenis_kelamin'] ?? '');
+            $ku = $r['kelas_umum'] ?? '';
+            $kd = $r['kelas_diniyyah'] ?? '';
+            $th = $r['tahun_masuk'] ?? '';
+
+            if (! ctype_digit($nisn) || strlen($nisn) > 15) {
+                $err[] = "Baris {$n}: nisn harus angka (maks 15 digit).";
+            } elseif (isset($seen[$nisn])) {
+                $err[] = "Baris {$n}: nisn '{$nisn}' duplikat.";
+            } elseif ($nama === '') {
+                $err[] = "Baris {$n}: nama_siswa kosong.";
+            } elseif (! in_array($jk, ['L', 'P'], true)) {
+                $err[] = "Baris {$n}: jenis_kelamin '".($r['jenis_kelamin'] ?? '')."' harus L / P.";
+            } elseif ($ku === '' || ! isset($kelasKey[KelasMatcher::key($ku)])) {
+                $err[] = "Baris {$n}: kelas_umum '{$ku}' tidak cocok dengan data kelas. Impor kelas dulu / samakan nama.";
+            } elseif ($th !== '' && (! ctype_digit($th) || $th < 2000 || $th > 2100)) {
+                $err[] = "Baris {$n}: tahun_masuk '{$th}' tidak valid (2000-2100).";
+            } else {
+                $seen[$nisn] = true;
+                $ok[] = [
+                    'nisn' => $nisn,
+                    'nama_siswa' => $nama,
+                    'jenis_kelamin' => $jk,
+                    'kelas_umum' => $ku,
+                    'kelas_diniyyah' => $kd === '' ? null : $kd,
+                    'tahun_masuk' => $th === '' ? null : (int) $th,
+                ];
             }
         }
 

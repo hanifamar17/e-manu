@@ -9,6 +9,8 @@
         ['route' => 'admin.impor.form',     'icon' => 'ph-upload-simple',  'judul' => 'Impor Data',        'desc' => 'Unduh template, unggah (xlsx / CSV)'],
         ['route' => 'admin.ekspor.index',   'icon' => 'ph-download-simple', 'judul' => 'Ekspor Data',      'desc' => 'Unduh data asli (xlsx)'],
         ['route' => 'admin.pengumuman.index', 'icon' => 'ph-megaphone', 'judul' => 'Pengumuman', 'desc' => 'Tambah, ubah, hapus pengumuman'],
+        ['route' => 'admin.kelas.index',    'icon' => 'ph-chalkboard-teacher', 'judul' => 'Kelas & Wali Kelas', 'desc' => 'Wali kelas, no HP, akun login'],
+        ['route' => 'admin.akun.index',     'icon' => 'ph-users',          'judul' => 'Akun Pengguna',     'desc' => 'Admin, guru, wali kelas'],
     ];
 @endphp
 <div class="max-w-5xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">

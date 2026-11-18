@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\BookingAdminController;
+use App\Http\Controllers\Admin\AkunController;
+use App\Http\Controllers\Admin\KelasAdminController;
 use App\Http\Controllers\Admin\EksporController;
 use App\Http\Controllers\Admin\ImporController;
 use App\Http\Controllers\Admin\KalenderAkademikController;
@@ -10,6 +12,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BookingRuanganController;
 use App\Http\Controllers\JadwalPelajaranController;
 use App\Http\Controllers\PengumumanController;
+use App\Http\Controllers\PerizinanController as PZ;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\InventarisController;
 use App\Http\Controllers\BarangPinjamanController;
@@ -111,6 +114,37 @@ Route::prefix('labkomp/peminjaman')->name('peminjaman_invlabkomp.')->group(funct
     });
 });
 
+// --- Perizinan siswa: login (guru / wali_kelas / admin); surat publik via uuid ---
+Route::prefix('perizinan')->name('perizinan.')->group(function () {
+    Route::get('/surat/{uuid}', [PZ::class, 'surat'])->whereUuid('uuid')->name('surat');
+
+    // ACC wali kelas lewat tautan (dikirim guru via WhatsApp), tanpa login; dijaga uuid + PIN 4 digit
+    Route::get('/acc-link/{uuid}', [PZ::class, 'accLink'])->whereUuid('uuid')->name('acc_link');
+    Route::post('/acc-link/{uuid}/setujui', [PZ::class, 'accLinkSetujui'])->whereUuid('uuid')->middleware('throttle:10,1')->name('acc_link.setujui');
+    Route::post('/acc-link/{uuid}/tolak', [PZ::class, 'accLinkTolak'])->whereUuid('uuid')->middleware('throttle:10,1')->name('acc_link.tolak');
+
+    // layar TV: tanpa login, dikunci token rahasia (config emanu.layar_token)
+    Route::get('/layar/{token}', [PZ::class, 'layar'])->where('token', '[A-Za-z0-9_-]+')->name('layar');
+    Route::get('/layar/{token}/data', [PZ::class, 'layarData'])->where('token', '[A-Za-z0-9_-]+')->middleware('throttle:30,1')->name('layar.data');
+
+    Route::middleware(['auth', RoleMiddleware::class.':guru,wali_kelas,admin'])->group(function () {
+        Route::get('/', [PZ::class, 'index'])->name('index');
+        Route::get('/form', [PZ::class, 'form'])->name('form');
+        Route::post('/form', [PZ::class, 'store'])->middleware('throttle:20,1')->name('store');
+        Route::get('/api/siswa', [PZ::class, 'siswa'])->middleware('throttle:60,1')->name('siswa');
+        Route::get('/riwayat', [PZ::class, 'riwayat'])->name('riwayat');
+        Route::get('/riwayat/{perizinan}', [PZ::class, 'show'])->name('show');
+        Route::post('/riwayat/{perizinan}/batal', [PZ::class, 'batal'])->name('batal');
+
+        // hanya wali kelas (+ admin); menu ACC disembunyikan dari guru
+        Route::middleware(RoleMiddleware::class.':wali_kelas,admin')->group(function () {
+            Route::get('/acc', [PZ::class, 'acc'])->name('acc');
+            Route::post('/riwayat/{perizinan}/setujui', [PZ::class, 'setujui'])->name('setujui');
+            Route::post('/riwayat/{perizinan}/tolak', [PZ::class, 'tolak'])->name('tolak');
+        });
+    });
+});
+
 // --- Admin ---
 Route::middleware(['auth', RoleMiddleware::class.':admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('home');
@@ -126,6 +160,11 @@ Route::middleware(['auth', RoleMiddleware::class.':admin'])->prefix('admin')->na
     Route::get('/impor', [ImporController::class, 'form'])->name('impor.form');
     Route::post('/impor', [ImporController::class, 'store'])->name('impor.store');
     Route::get('/impor/template/{type}', [ImporController::class, 'template'])->name('impor.template');
+
+    Route::resource('kelas', KelasAdminController::class)->only(['index', 'edit', 'update'])->parameters(['kelas' => 'kelas']);
+
+    Route::get('akun/{akun}/hapus', [AkunController::class, 'konfirmasiHapus'])->name('akun.hapus');
+    Route::resource('akun', AkunController::class)->parameters(['akun' => 'akun'])->except('show');
 
     Route::get('/ekspor', [EksporController::class, 'index'])->name('ekspor.index');
     Route::get('/ekspor/{type}', [EksporController::class, 'download'])->name('ekspor.download');
