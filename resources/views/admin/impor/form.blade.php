@@ -11,12 +11,12 @@
     <i class="ph ph-arrow-left"></i> Kembali
   </a>
   <h1 class="page-title text-2xl font-bold mt-8 mb-2">Impor Data</h1>
-  <p class="text-sm text-[var(--ink-soft)] mt-0 mb-6">Format: Excel (.xlsx) atau CSV. Satu baris salah = seluruh impor dibatalkan.</p>
+  <p class="text-sm text-[var(--ink-soft)] mt-0 mb-6">Format: Excel (.xlsx) atau CSV. Satu baris salah = seluruh impor dibatalkan. Tanggal: DD-MM-YYYY. Data asli: menu <a class="underline" href="{{ route('admin.ekspor.index') }}">Ekspor</a>.</p>
 
   @include('partials.flash')
 
   <div class="mb-8">
-    <p class="{{ $lbl }}">1. Unduh template (format pasti sama dengan sistem)</p>
+    <p class="{{ $lbl }}">1. Unduh template (header saja, format pasti sama dengan sistem)</p>
     @foreach ($types as $k => $label)
       <div class="flex flex-wrap items-baseline justify-between gap-2 py-2.5 border-b border-[var(--line)] text-sm">
         <div>
@@ -25,7 +25,6 @@
         </div>
         <div class="flex gap-3 whitespace-nowrap">
           <a class="underline" href="{{ route('admin.impor.template', $k) }}">Template</a>
-          <a class="underline" href="{{ route('admin.impor.template', [$k, 'data' => 1]) }}">Data saat ini</a>
         </div>
       </div>
     @endforeach
@@ -52,14 +51,7 @@
         <option value="replace" @selected(old('mode', 'replace') === 'replace')>Ganti semua data lama</option>
         <option value="append" @selected(old('mode') === 'append')>Tambah ke data lama</option>
       </select>
-    </div>
-    <div>
-      <label class="{{ $lbl }}" for="format">Format tanggal teks (Kalender). Template = YYYY-MM-DD</label>
-      <select class="{{ $inp }}" id="format" name="format" required>
-        @foreach ($formats as $k => $label)
-          <option value="{{ $k }}" @selected(old('format', 'Y-m-d') === $k)>{{ $label }}</option>
-        @endforeach
-      </select>
+      <p class="mono text-[11px] text-[var(--ink-faint)] mt-1 mb-0">Sarpras: kosongkan kolom id untuk barang baru (kode dibuat otomatis).</p>
     </div>
     <button class="px-6 py-2.5 text-sm font-semibold bg-[var(--ink)] text-[var(--paper)]">Impor</button>
   </form>

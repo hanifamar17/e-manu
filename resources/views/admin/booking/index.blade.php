@@ -10,8 +10,10 @@
   <div class="flex flex-wrap items-end justify-between gap-3 mt-8 mb-6">
     <h1 class="page-title text-2xl font-bold m-0">Pengajuan Booking Lab</h1>
     <div class="flex gap-3 text-sm">
-      <a class="underline" href="{{ route('admin.kalender.index') }}">Kalender akademik</a>
-      <a class="underline" href="{{ route('admin.impor.form') }}">Impor CSV</a>
+      <a data-lock href="{{ route('admin.kalender.index') }}"
+         class="underline cursor-pointer touch-manipulation select-none transition hover:text-[var(--ink)] active:scale-95">
+        Kalender akademik
+      </a>
     </div>
   </div>
 
@@ -19,8 +21,13 @@
 
   <div class="flex gap-2 mb-6 mono text-xs font-bold uppercase tracking-widest">
     @foreach (['pending' => 'Menunggu ('.$jumlahPending.')', 'disetujui' => 'Disetujui', 'ditolak' => 'Ditolak'] as $k => $label)
-      <a href="{{ route('admin.booking.index', ['status' => $k]) }}"
-        class="px-3 py-1.5 border border-[var(--line)] {{ $status === $k ? 'bg-[var(--ink)] text-[var(--paper)]' : 'text-[var(--ink-soft)]' }}">{{ $label }}</a>
+      <a data-lock href="{{ route('admin.booking.index', ['status' => $k]) }}"
+        class="inline-block px-3 py-1.5 border border-[var(--line)] cursor-pointer touch-manipulation select-none transition active:scale-[0.97]
+          {{ $status === $k
+            ? 'bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)]'
+            : 'text-[var(--ink-soft)] hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)]' }}">
+        {{ $label }}
+      </a>
     @endforeach
   </div>
 
@@ -50,20 +57,29 @@
 
         <div class="flex flex-wrap items-start gap-3 mt-3">
           @if ($b->status === 'pending')
-            <form method="POST" action="{{ route('admin.booking.setujui', $b) }}">
+            <form data-lock method="POST" action="{{ route('admin.booking.setujui', $b) }}">
               @csrf
-              <button class="px-3 py-1.5 text-xs font-semibold bg-[var(--ink)] text-[var(--paper)]" @disabled($b->ada_bentrok ?? false)>Setujui</button>
+              <button type="submit" @disabled($b->ada_bentrok ?? false)
+                class="inline-block px-3 py-1.5 text-xs font-semibold bg-[var(--ink)] text-[var(--paper)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--accent)] active:scale-[0.97] active:bg-[var(--accent)] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none">
+                Setujui
+              </button>
             </form>
-            <form method="POST" action="{{ route('admin.booking.tolak', $b) }}" class="flex gap-2 flex-1 min-w-[220px]">
+            <form data-lock method="POST" action="{{ route('admin.booking.tolak', $b) }}" class="flex gap-2 flex-1 min-w-[220px]">
               @csrf
               <input name="alasan_penolakan" required maxlength="500" placeholder="Alasan penolakan"
                 class="flex-1 text-xs bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0">
-              <button class="px-3 py-1.5 text-xs font-semibold border border-[var(--line)]">Tolak</button>
+              <button type="submit"
+                class="inline-block px-3 py-1.5 text-xs font-semibold border border-[var(--line)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)] active:scale-[0.97]">
+                Tolak
+              </button>
             </form>
           @endif
-          <form method="POST" action="{{ route('admin.booking.destroy', $b) }}" onsubmit="return confirm('Hapus pengajuan ini?')">
+          <form data-lock method="POST" action="{{ route('admin.booking.destroy', $b) }}" onsubmit="return confirm('Hapus pengajuan ini?')">
             @csrf @method('DELETE')
-            <button class="px-3 py-1.5 text-xs text-red-600">Hapus</button>
+            <button type="submit"
+              class="inline-block px-3 py-1.5 text-xs text-red-600 cursor-pointer touch-manipulation select-none transition hover:underline active:scale-95">
+              Hapus
+            </button>
           </form>
         </div>
       </div>
@@ -74,4 +90,29 @@
 
   <div class="mt-6">{{ $items->links() }}</div>
 </div>
+
+<script>
+// Tombol/tautan data-lock: sekali klik -> terkunci (cegah klik ganda), dibuka lagi saat halaman ditampilkan ulang (tombol Back).
+document.addEventListener('DOMContentLoaded', () => {
+  const LOCK = ['pointer-events-none', 'opacity-60'];
+  const lock = el => { el.setAttribute('aria-busy', 'true'); el.classList.add(...LOCK); };
+  const unlockAll = () => document.querySelectorAll('[data-lock] [aria-busy], a[data-lock][aria-busy], button[aria-busy]').forEach(el => {
+    el.removeAttribute('aria-busy'); el.classList.remove(...LOCK);
+  });
+
+  document.querySelectorAll('a[data-lock]').forEach(a => a.addEventListener('click', e => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || a.target === '_blank') return;
+    if (a.hasAttribute('aria-busy')) { e.preventDefault(); return; }
+    lock(a);
+  }));
+
+  document.querySelectorAll('form[data-lock]').forEach(f => f.addEventListener('submit', e => {
+    const b = f.querySelector('button[type="submit"], button:not([type])');
+    if (!b || b.disabled || b.hasAttribute('aria-busy')) { e.preventDefault(); return; }
+    lock(b);
+  }));
+
+  window.addEventListener('pageshow', unlockAll);
+});
+</script>
 @endsection

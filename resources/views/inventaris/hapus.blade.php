@@ -79,14 +79,42 @@
   </div>
 
   <div class="flex flex-wrap items-center gap-5">
-    <form method="POST" action="{{ route('inventaris.destroy', $item) }}">
+    <form data-lock method="POST" action="{{ route('inventaris.destroy', $item) }}">
       @csrf @method('DELETE')
       <button type="submit" @disabled($dipinjam)
-        class="px-6 py-2.5 text-sm font-semibold bg-[var(--ink)] text-[var(--paper)] disabled:opacity-30 disabled:cursor-not-allowed">
+        class="inline-block px-6 py-2.5 text-sm font-semibold bg-[var(--ink)] text-[var(--paper)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--accent)] active:scale-[0.97] active:bg-[var(--accent)] disabled:opacity-30 disabled:cursor-not-allowed disabled:pointer-events-none">
         Ya, Hapus Sekarang
       </button>
     </form>
-    <a href="{{ route('inventaris.index') }}" class="text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">Batalkan</a>
+    <a data-lock href="{{ route('inventaris.index') }}"
+       class="inline-block py-2 px-1 text-sm font-semibold text-[var(--ink-soft)] cursor-pointer touch-manipulation select-none transition hover:text-[var(--ink)] active:scale-95">
+      Batalkan
+    </a>
   </div>
 </div>
+
+<script>
+// Tombol/tautan data-lock: sekali klik -> terkunci (cegah klik ganda), dibuka lagi saat halaman ditampilkan ulang (tombol Back).
+document.addEventListener('DOMContentLoaded', () => {
+  const LOCK = ['pointer-events-none', 'opacity-60'];
+  const lock = el => { el.setAttribute('aria-busy', 'true'); el.classList.add(...LOCK); };
+  const unlockAll = () => document.querySelectorAll('[data-lock] [aria-busy], a[data-lock][aria-busy], button[aria-busy]').forEach(el => {
+    el.removeAttribute('aria-busy'); el.classList.remove(...LOCK);
+  });
+
+  document.querySelectorAll('a[data-lock]').forEach(a => a.addEventListener('click', e => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || a.target === '_blank') return;
+    if (a.hasAttribute('aria-busy')) { e.preventDefault(); return; }
+    lock(a);
+  }));
+
+  document.querySelectorAll('form[data-lock]').forEach(f => f.addEventListener('submit', e => {
+    const b = f.querySelector('button');
+    if (!b || b.disabled || b.hasAttribute('aria-busy')) { e.preventDefault(); return; }
+    lock(b);
+  }));
+
+  window.addEventListener('pageshow', unlockAll);
+});
+</script>
 @endsection

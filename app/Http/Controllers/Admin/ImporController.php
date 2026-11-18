@@ -18,7 +18,6 @@ class ImporController extends Controller
         return view('admin.impor.form', [
             'types' => CsvImporter::TYPES,
             'columns' => CsvImporter::COLUMNS,
-            'formats' => CsvImporter::DATE_FORMATS,
         ]);
     }
 
@@ -28,24 +27,30 @@ class ImporController extends Controller
             'type' => ['required', Rule::in(array_keys(CsvImporter::TYPES))],
             'file' => ['required', 'file', 'max:2048', 'mimes:csv,txt,xlsx'],
             'mode' => ['required', Rule::in(['replace', 'append'])],
-            'format' => ['required', Rule::in(array_keys(CsvImporter::DATE_FORMATS))],
         ]);
 
-        $res = $importer->import($data['type'], $request->file('file')->getRealPath(), $data['mode'] === 'replace', $data['format']);
+        // Format tanggal tunggal: DD-MM-YYYY (CsvImporter::DEFAULT_DATE_FORMAT).
+        $res = $importer->import($data['type'], $request->file('file')->getRealPath(), $data['mode'] === 'replace');
 
         if ($res['errors']) {
             return back()->withInput()->with('import_errors', array_slice($res['errors'], 0, 50));
         }
 
-        return back()->with('status', "Berhasil: {$res['inserted']} baris diimpor.");
+        $msg = "Berhasil: {$res['inserted']} baris diimpor.";
+        if (! empty($res['generated'])) {
+            $g = $res['generated'];
+            $msg .= ' Kode baru: '.(count($g) === 1 ? $g[0] : $g[0].' - '.end($g)).'.';
+        }
+
+        return back()->with('status', $msg);
     }
 
-    public function template(Request $request, string $type, ExcelTemplate $tpl): BinaryFileResponse
+    /** Template kosong (header saja). Data asli lewat menu Ekspor. */
+    public function template(string $type, ExcelTemplate $tpl): BinaryFileResponse
     {
         abort_unless(isset(CsvImporter::TYPES[$type]), 404);
-        $withData = $request->boolean('data');
-        $path = $tpl->build($type, $withData);
+        $path = $tpl->build($type, false);
 
-        return response()->download($path, ($withData ? 'data-' : 'template-').$type.'.xlsx')->deleteFileAfterSend(true);
+        return response()->download($path, 'template-'.$type.'.xlsx')->deleteFileAfterSend(true);
     }
 }

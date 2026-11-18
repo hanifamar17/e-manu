@@ -7,14 +7,14 @@
     $lbl = 'eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] mb-1 block';
 @endphp
 <div class="max-w-2xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
-  <a href="{{ route('inventaris.index') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)]">
+  <a data-lock href="{{ route('inventaris.index') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] cursor-pointer touch-manipulation">
     <i class="ph ph-arrow-left"></i> Kembali
   </a>
   <h1 class="page-title text-2xl font-bold mt-8 mb-6">{{ $item->exists ? 'Edit Barang: '.$item->kode : 'Tambah Barang' }}</h1>
 
   @include('partials.flash')
 
-  <form method="POST" action="{{ $item->exists ? route('inventaris.update', $item) : route('inventaris.store') }}" class="space-y-6">
+  <form id="itemForm" method="POST" action="{{ $item->exists ? route('inventaris.update', $item) : route('inventaris.store') }}" class="space-y-6">
     @csrf
     @if ($item->exists) @method('PUT') @endif
 
@@ -80,7 +80,35 @@
       </p>
     @endif
 
-    <button class="px-6 py-2.5 text-sm font-semibold bg-[var(--ink)] text-[var(--paper)]">Simpan</button>
+    <button id="btnSimpan" class="w-full sm:w-auto px-6 py-3 sm:py-2.5 text-sm font-semibold bg-[var(--ink)] text-[var(--paper)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--accent)] active:scale-[0.97] active:bg-[var(--accent)] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100">Simpan</button>
   </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('itemForm'), btn = document.getElementById('btnSimpan');
+  const LABEL = btn.textContent;
+  let busy = false;
+
+  // submit hanya terpicu setelah validasi HTML5 lolos. Tombol tidak punya name, jadi aman di-disable.
+  form.addEventListener('submit', e => {
+    if (busy) { e.preventDefault(); return; }
+    busy = true;
+    btn.disabled = true; btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Menyimpan...';
+  });
+
+  document.querySelectorAll('a[data-lock]').forEach(a => a.addEventListener('click', e => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (a.hasAttribute('aria-busy')) { e.preventDefault(); return; }
+    a.setAttribute('aria-busy', 'true'); a.classList.add('pointer-events-none', 'opacity-60');
+  }));
+
+  // kembali lewat tombol Back (bfcache): buka kunci
+  window.addEventListener('pageshow', () => {
+    busy = false; btn.disabled = false; btn.removeAttribute('aria-busy'); btn.textContent = LABEL;
+    document.querySelectorAll('a[aria-busy]').forEach(a => { a.removeAttribute('aria-busy'); a.classList.remove('pointer-events-none', 'opacity-60'); });
+  });
+});
+</script>
 @endsection

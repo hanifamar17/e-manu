@@ -6,7 +6,8 @@
     $menu = [
         ['route' => 'admin.booking.index',  'icon' => 'ph-calendar-check', 'judul' => 'Booking Ruangan',   'desc' => 'Setujui / tolak pengajuan'],
         ['route' => 'admin.kalender.index', 'icon' => 'ph-calendar-dots',  'judul' => 'Kalender Akademik', 'desc' => 'Tambah, ubah, hapus agenda'],
-        ['route' => 'admin.impor.form',     'icon' => 'ph-upload-simple',  'judul' => 'Impor Data',        'desc' => 'Jadwal & kalender (xlsx / CSV)'],
+        ['route' => 'admin.impor.form',     'icon' => 'ph-upload-simple',  'judul' => 'Impor Data',        'desc' => 'Unduh template, unggah (xlsx / CSV)'],
+        ['route' => 'admin.ekspor.index',   'icon' => 'ph-download-simple', 'judul' => 'Ekspor Data',      'desc' => 'Unduh data asli (xlsx)'],
         ['route' => 'admin.pengumuman.index', 'icon' => 'ph-megaphone', 'judul' => 'Pengumuman', 'desc' => 'Tambah, ubah, hapus pengumuman'],
     ];
 @endphp
@@ -31,13 +32,16 @@
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
     @foreach ($menu as $m)
       @if ($m['route'])
-        <a href="{{ route($m['route']) }}" class="card-outline flex items-start gap-3 p-4 border border-[var(--line)] hover:border-[var(--accent)] transition-colors no-underline text-inherit">
-          <i class="ph {{ $m['icon'] }} text-xl opacity-70"></i>
-          <div>
-            <p class="font-bold text-[15px] m-0">{{ $m['judul'] }}</p>
-            <p class="text-[12px] text-[var(--ink-soft)] m-0 mt-0.5">{{ $m['desc'] }}</p>
-          </div>
-        </a>
+        <a data-lock href="{{ route($m['route']) }}"
+   class="group card-outline flex items-start gap-3 p-4 border border-[var(--line)] cursor-pointer touch-manipulation select-none transition
+          hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)]
+          active:scale-[0.98] no-underline text-inherit">
+  <i class="ph {{ $m['icon'] }} text-xl opacity-70 transition group-hover:opacity-100 group-hover:text-[var(--paper)]"></i>
+  <div>
+    <p class="font-bold text-[15px] m-0">{{ $m['judul'] }}</p>
+    <p class="text-[12px] text-[var(--ink-soft)] m-0 mt-0.5 transition group-hover:text-[var(--paper)]/75">{{ $m['desc'] }}</p>
+  </div>
+</a>
       @else
         <div class="flex items-start gap-3 p-4 border border-dashed border-[var(--line)] opacity-50">
           <i class="ph {{ $m['icon'] }} text-xl"></i>
@@ -52,7 +56,10 @@
 
   <div class="flex items-baseline justify-between mb-3">
     <p class="eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] m-0">Pengajuan menunggu</p>
-    <a class="underline text-xs" href="{{ route('admin.booking.index') }}">Lihat semua</a>
+    <a data-lock href="{{ route('admin.booking.index') }}"
+       class="underline text-xs cursor-pointer touch-manipulation select-none transition hover:text-[var(--ink)] active:scale-95">
+      Lihat semua
+    </a>
   </div>
   <div class="space-y-2">
     @forelse ($pending as $b)
@@ -65,4 +72,23 @@
     @endforelse
   </div>
 </div>
+
+<script>
+// Tombol/tautan data-lock: sekali klik -> terkunci (cegah klik ganda), dibuka lagi saat halaman ditampilkan ulang (tombol Back).
+document.addEventListener('DOMContentLoaded', () => {
+  const LOCK = ['pointer-events-none', 'opacity-60'];
+  const lock = el => { el.setAttribute('aria-busy', 'true'); el.classList.add(...LOCK); };
+  const unlockAll = () => document.querySelectorAll('[data-lock] [aria-busy], a[data-lock][aria-busy], button[aria-busy]').forEach(el => {
+    el.removeAttribute('aria-busy'); el.classList.remove(...LOCK);
+  });
+
+  document.querySelectorAll('a[data-lock]').forEach(a => a.addEventListener('click', e => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || a.target === '_blank') return;
+    if (a.hasAttribute('aria-busy')) { e.preventDefault(); return; }
+    lock(a);
+  }));
+
+  window.addEventListener('pageshow', unlockAll);
+});
+</script>
 @endsection

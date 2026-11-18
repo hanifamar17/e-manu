@@ -9,7 +9,7 @@
   <div class="flex flex-wrap items-end justify-between gap-3 mt-8 mb-6">
     <h1 class="page-title text-2xl font-bold m-0">Kalender Akademik</h1>
     <div class="flex gap-3 text-sm">
-      <a class="underline" href="{{ route('admin.impor.form') }}">Impor CSV</a>
+      <a class="underline" href="{{ route('admin.impor.form') }}">Impor</a>
       <a class="px-3 py-1.5 bg-[var(--ink)] text-[var(--paper)] font-semibold" href="{{ route('admin.kalender.create') }}">+ Tambah</a>
     </div>
   </div>

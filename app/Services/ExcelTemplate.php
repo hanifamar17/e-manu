@@ -63,8 +63,8 @@ class ExcelTemplate
     {
         return match ($type) {
             'kalender' => KalenderAkademik::orderBy('tanggal_mulai')->get()->map(fn ($k) => [
-                $k->tanggal_mulai->format('Y-m-d'),
-                $k->tanggal_selesai->eq($k->tanggal_mulai) ? '' : $k->tanggal_selesai->format('Y-m-d'),
+                $k->tanggal_mulai->format('d-m-Y'),
+                $k->tanggal_selesai->eq($k->tanggal_mulai) ? '' : $k->tanggal_selesai->format('d-m-Y'),
                 $k->keterangan, $k->kategori,
             ])->all(),
             'kelas' => Kelas::orderBy('nama_kelas')->get()->map(fn ($k) => [$k->nama_kelas, $k->wali_kelas])->all(),
@@ -80,6 +80,7 @@ class ExcelTemplate
                 $i->kode, $i->nama_barang, $i->merk, $i->kondisi, $i->lokasi, $i->tahun_pengadaan,
                 $i->sumber_dana, $i->sub_bidang, $i->jumlah_total,
             ])->all(),
+            'labkomp_items', 'labkomp_peminjaman' => app(CsvImporter::class)->exportRows($type),
         };
     }
 }

@@ -12,11 +12,11 @@
       <h1 class="page-title text-2xl font-bold m-0">Database Sarpras</h1>
       <p class="text-sm text-[var(--ink-soft)] mt-1 mb-0">Master data barang dan ketersediaan stok.</p>
     </div>
-    <div class="flex gap-3 text-sm">
+    <div class="flex items-center gap-3 text-sm">
       @if (auth()->user()->hasRole('admin'))
-        <a class="underline" href="{{ route('admin.impor.form') }}">Impor</a>
+        <a data-lock class="inline-block px-4 py-2.5 text-sm font-semibold border border-[var(--line)] text-[var(--ink)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)] active:scale-[0.97] active:bg-[var(--ink)] active:text-[var(--paper)]" href="{{ route('admin.impor.form') }}">Impor</a>
       @endif
-      <a class="px-3 py-1.5 bg-[var(--ink)] text-[var(--paper)] font-semibold" href="{{ route('inventaris.create') }}">+ Tambah Barang</a>
+      <a data-lock class="inline-block px-4 py-2.5 bg-[var(--ink)] text-[var(--paper)] font-semibold cursor-pointer touch-manipulation select-none transition hover:bg-[var(--accent)] active:scale-[0.97] active:bg-[var(--accent)]" href="{{ route('inventaris.create') }}">+ Tambah</a>
     </div>
   </div>
 
@@ -24,11 +24,11 @@
 
   @include('partials.sarpras_tabs', ['active' => $bidang ?: 'semua', 'q' => $q])
 
-  <form method="GET" action="{{ route('inventaris.index') }}" class="flex items-end gap-3 max-w-sm mb-8">
+  <form data-lock method="GET" action="{{ route('inventaris.index') }}" class="flex items-end gap-3 max-w-sm mb-8">
     @if ($bidang)<input type="hidden" name="bidang" value="{{ $bidang }}">@endif
     <input name="q" value="{{ $q }}" placeholder="Cari nama, merk, lokasi, kode..."
-      class="flex-1 py-2.5 px-0 text-sm bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0 focus:border-[var(--accent)] rounded-none text-[var(--ink)]">
-    <button class="px-3 py-1.5 text-xs font-semibold border border-[var(--line)]">Cari</button>
+      class="flex-1 py-2.5 px-0 text-base sm:text-sm bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0 focus:border-[var(--accent)] rounded-none text-[var(--ink)]">
+    <button class="inline-block px-4 py-2.5 text-sm font-semibold border border-[var(--line)] text-[var(--ink)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)] active:scale-[0.97] active:bg-[var(--ink)] active:text-[var(--paper)]">Cari</button>
   </form>
 
   <div class="overflow-x-auto">
@@ -58,8 +58,8 @@
               <div class="mono text-[10px] font-bold uppercase tracking-wider {{ $r->status === 'Habis' ? 'text-red-600' : 'text-[var(--accent)]' }}">{{ $r->status }}</div>
             </td>
             <td class="py-3 text-right">
-              <a class="underline text-xs mr-3" href="{{ route('inventaris.edit', $r) }}">Edit</a>
-              <a class="text-xs text-red-600" href="{{ route('inventaris.hapus', $r) }}">Hapus</a>
+              <a data-lock class="inline-block py-2 px-1 underline text-xs mr-2 cursor-pointer touch-manipulation select-none transition hover:opacity-70 active:scale-95" href="{{ route('inventaris.edit', $r) }}">Edit</a>
+              <a data-lock class="inline-block py-2 px-1 text-xs text-red-600 cursor-pointer touch-manipulation select-none transition hover:underline active:scale-95" href="{{ route('inventaris.hapus', $r) }}">Hapus</a>
             </td>
           </tr>
         @empty
@@ -68,6 +68,50 @@
       </tbody>
     </table>
   </div>
-  <div class="mt-6">{{ $items->links() }}</div>
+  @php
+  $items->withQueryString();
+  $last = method_exists($items, 'lastPage') ? max($items->lastPage(), 1) : null;
+  $pg = 'inline-block py-2 px-2 uppercase cursor-pointer touch-manipulation select-none transition hover:text-[var(--ink)] active:scale-95';
+@endphp
+  <div class="mt-6 flex items-center justify-between text-xs text-[var(--ink-soft)]">
+    <div>Hal <span class="text-[var(--ink)]">{{ $items->currentPage() }}</span>@if ($last)/<span class="text-[var(--ink)]">{{ $last }}</span>@endif</div>
+    <div class="flex gap-4">
+      @if ($items->onFirstPage())
+        <span class="{{ $pg }} opacity-30 pointer-events-none">&larr; Prev</span>
+      @else
+        <a data-lock class="{{ $pg }}" href="{{ $items->previousPageUrl() }}">&larr; Prev</a>
+      @endif
+      @if ($items->hasMorePages())
+        <a data-lock class="{{ $pg }}" href="{{ $items->nextPageUrl() }}">Next &rarr;</a>
+      @else
+        <span class="{{ $pg }} opacity-30 pointer-events-none">Next &rarr;</span>
+      @endif
+    </div>
+  </div>
 </div>
+
+<script>
+// Tombol/tautan data-lock: sekali klik -> terkunci (cegah klik ganda), dibuka lagi saat halaman ditampilkan ulang (tombol Back).
+document.addEventListener('DOMContentLoaded', () => {
+  const LOCK = ['pointer-events-none', 'opacity-60'];
+  const lock = el => { el.setAttribute('aria-busy', 'true'); el.classList.add(...LOCK); };
+  const unlockAll = () => document.querySelectorAll('[data-lock] [aria-busy], a[data-lock][aria-busy], button[aria-busy]').forEach(el => {
+    el.removeAttribute('aria-busy'); el.classList.remove(...LOCK);
+  });
+
+  document.querySelectorAll('a[data-lock]').forEach(a => a.addEventListener('click', e => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || a.target === '_blank') return;   // buka di tab baru: jangan kunci
+    if (a.hasAttribute('aria-busy')) { e.preventDefault(); return; }
+    lock(a);
+  }));
+
+  document.querySelectorAll('form[data-lock]').forEach(f => f.addEventListener('submit', e => {
+    const b = f.querySelector('button');
+    if (b.hasAttribute('aria-busy')) { e.preventDefault(); return; }
+    lock(b);
+  }));
+
+  window.addEventListener('pageshow', unlockAll);   // bfcache: kembali via Back
+});
+</script>
 @endsection

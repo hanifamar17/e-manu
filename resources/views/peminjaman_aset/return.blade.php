@@ -40,7 +40,7 @@
                 class="w-full text-sm border-b border-zinc-200 focus:outline-none focus:border-zinc-900 py-2 resize-none bg-transparent"></textarea>
     </div>
     <div id="status" class="hidden text-xs font-medium p-3 border"></div>
-    <button id="btnReturn" disabled class="w-full bg-zinc-900 text-white text-[13px] font-semibold py-4 hover:bg-zinc-800 disabled:bg-zinc-200 disabled:cursor-not-allowed">Konfirmasi Pengembalian</button>
+    <button id="btnReturn" disabled class="w-full bg-[var(--ink)] text-[var(--paper)] text-[13px] font-semibold py-4 cursor-pointer touch-manipulation select-none transition hover:bg-[var(--accent)] active:scale-[0.98] active:bg-[var(--accent)] disabled:bg-[var(--line)] disabled:text-[var(--ink-faint)] disabled:cursor-not-allowed disabled:active:scale-100">Konfirmasi Pengembalian</button>
   </div>
 </div>
 
@@ -50,8 +50,8 @@
     <h2 class="text-lg font-bold tracking-tight m-0">Proses pengembalian?</h2>
     <p id="cmText" class="text-sm text-[#6b6459] mt-2 mb-6">Pastikan fisik barang sesuai.</p>
     <div class="flex gap-3">
-      <button value="cancel" class="flex-1 py-3 text-[13px] font-semibold border border-[#e6e0d6] hover:bg-[#f3f0ea]">Batal</button>
-      <button value="ok" class="flex-1 py-3 text-[13px] font-semibold bg-[#1f1c19] text-[#faf8f5] hover:bg-[#a8501f]">Ya, Selesaikan</button>
+      <button value="cancel" class="flex-1 py-3 text-[13px] font-semibold border border-[var(--line)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--line)]/40 active:scale-[0.98] active:bg-[var(--line)]/70">Batal</button>
+      <button value="ok" class="flex-1 py-3 text-[13px] font-semibold bg-[var(--ink)] text-[var(--paper)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--accent)] active:scale-[0.98] active:bg-[var(--accent)]">Ya, Selesaikan</button>
     </div>
   </form>
 </dialog>
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const token = document.querySelector('input[name=_token]').value;
-  let loan = null, timer;
+  let loan = null, timer, busy = false;   // busy: blokir tap kedua dari klik tombol sampai selesai
 
   const show = (m, ok = true) => emanuNotify(m, ok);
 
@@ -108,21 +108,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   $('btnReturn').addEventListener('click', async () => {
-    if (!loan) return;
+    if (busy || !loan) return;
+    busy = true;
     $('cmText').textContent = `${loan.borrower_name} · ${loan.items.filter(i => !i.dikembalikan).length} barang. Pastikan fisik barang sesuai.`;
-    if (!(await confirmReturn())) return;
+    if (!(await confirmReturn())) { busy = false; return; }
 
     const btn = $('btnReturn');
-    btn.disabled = true; btn.textContent = 'Memproses...';
+    btn.disabled = true; btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Memproses...';
     const fd = new FormData();
     fd.append('code', loan.code);
     fd.append('catatan', $('catatan').value);
     try {
       const res = await fetch(@json(route('peminjaman.return.submit')), { method: 'POST', headers: { Accept: 'application/json', 'X-CSRF-TOKEN': token }, body: fd });
       const out = await res.json();
-      if (out.ok) { show('Berhasil dikembalikan.', true); $('catatan').value = ''; await fetchLoan(); return; }
+      if (out.ok) { show('Berhasil dikembalikan.', true); $('catatan').value = ''; busy = false; btn.removeAttribute('aria-busy'); await fetchLoan(); return; }
       show(out.error || out.message || 'Gagal.', false);
     } catch (e) { show('Server error.', false); }
+    busy = false; btn.removeAttribute('aria-busy');
     btn.disabled = false; btn.textContent = 'Konfirmasi Pengembalian';
   });
 });

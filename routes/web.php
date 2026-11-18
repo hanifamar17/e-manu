@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\BookingAdminController;
+use App\Http\Controllers\Admin\EksporController;
 use App\Http\Controllers\Admin\ImporController;
 use App\Http\Controllers\Admin\KalenderAkademikController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -13,6 +14,8 @@ use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\InventarisController;
 use App\Http\Controllers\BarangPinjamanController;
 use App\Http\Controllers\PeminjamanAsetController as PA;
+use App\Http\Controllers\LabkompInventarisController as LKI;
+use App\Http\Controllers\LabkompPeminjamanController as LKP;
 
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -74,6 +77,40 @@ Route::prefix('peminjaman-aset')->name('peminjaman.')->group(function () {
     });
 });
 
+// --- Lab Komp: inventaris (landing + search publik; sisanya login) ---
+Route::prefix('labkomp/inventaris')->name('inventory_labkomp.')->group(function () {
+    Route::get('/', [LKI::class, 'landing'])->name('inventory_landing');
+    Route::get('/api/search', [LKI::class, 'search'])->middleware('throttle:60,1')->name('api_search');
+
+    Route::middleware('auth')->group(function () {
+        Route::get('/daftar', [LKI::class, 'index'])->name('inventory_list');
+        Route::get('/tambah', [LKI::class, 'create'])->name('inventory_add');
+        Route::post('/tambah', [LKI::class, 'store'])->name('inventory_store');
+        Route::get('/{item}/edit', [LKI::class, 'edit'])->whereNumber('item')->name('inventory_edit');
+        Route::put('/{item}', [LKI::class, 'update'])->whereNumber('item')->name('inventory_update');
+        Route::get('/{item}/hapus', [LKI::class, 'konfirmasiHapus'])->whereNumber('item')->name('inventory_delete');
+        Route::delete('/{item}', [LKI::class, 'destroy'])->whereNumber('item')->name('inventory_destroy');
+    });
+});
+
+// --- Lab Komp: peminjaman barang ---
+Route::prefix('labkomp/peminjaman')->name('peminjaman_invlabkomp.')->group(function () {
+    // publik (peminjam)
+    Route::get('/', [LKP::class, 'landing'])->name('peminjaman_landing');
+    Route::get('/pinjam', [LKP::class, 'borrow'])->name('borrow');
+    Route::post('/pinjam', [LKP::class, 'submit'])->middleware('throttle:10,1')->name('borrow_submit');
+    Route::get('/bukti/{uuid}', [LKP::class, 'receipt'])->name('receipt');
+
+    // login-only (petugas)
+    Route::middleware('auth')->group(function () {
+        Route::get('/riwayat', [LKP::class, 'history'])->name('history');
+        Route::get('/detail/{kode}', [LKP::class, 'detail'])->name('loan_detail');
+        Route::get('/kembali', [LKP::class, 'returnPage'])->name('return_page');
+        Route::get('/api/loan', [LKP::class, 'apiLoan'])->name('api_loan');
+        Route::post('/kembali', [LKP::class, 'returnSubmit'])->name('return_submit');
+    });
+});
+
 // --- Admin ---
 Route::middleware(['auth', RoleMiddleware::class.':admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('home');
@@ -89,6 +126,9 @@ Route::middleware(['auth', RoleMiddleware::class.':admin'])->prefix('admin')->na
     Route::get('/impor', [ImporController::class, 'form'])->name('impor.form');
     Route::post('/impor', [ImporController::class, 'store'])->name('impor.store');
     Route::get('/impor/template/{type}', [ImporController::class, 'template'])->name('impor.template');
+
+    Route::get('/ekspor', [EksporController::class, 'index'])->name('ekspor.index');
+    Route::get('/ekspor/{type}', [EksporController::class, 'download'])->name('ekspor.download');
 });
 
 Route::middleware('guest')->group(function () {

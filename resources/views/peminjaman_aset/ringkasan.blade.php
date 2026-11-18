@@ -56,18 +56,19 @@
     @if ($p->pdf_path)
       <div class="bg-[#f3f0ea] p-5 border border-[#e6e0d6]">
         <p class="text-sm font-medium mb-4">Dokumen peminjaman sudah tersedia.</p>
-        <a href="{{ route('peminjaman.preview', $p) }}" target="_blank"
-           class="block w-full text-center bg-[#1f1c19] text-white text-[13px] font-semibold py-3.5 hover:bg-[#333]">Lihat PDF</a>
+        <a href="{{ route('peminjaman.preview', $p) }}" target="_blank" rel="noopener"
+           onclick="if (this.dataset.busy) return false; this.dataset.busy = 1; setTimeout(() => delete this.dataset.busy, 1500);"
+           class="block w-full text-center bg-[var(--ink)] text-[var(--paper)] text-[13px] font-semibold py-3.5 cursor-pointer touch-manipulation select-none transition hover:bg-[var(--accent)] active:scale-[0.98] active:bg-[var(--accent)]">Lihat PDF</a>
       </div>
     @else
       <form id="generateForm" class="space-y-4">
         @csrf
-        <label class="flex items-start gap-3 cursor-pointer">
-          <input type="checkbox" id="setuju" name="setuju" value="1" class="mt-1">
+        <label class="flex items-start gap-3 cursor-pointer touch-manipulation">
+          <input type="checkbox" id="setuju" name="setuju" value="1" class="mt-1 w-4 h-4 cursor-pointer accent-[var(--ink)]">
           <span class="text-sm text-[#6b6459]">Saya memastikan seluruh data di atas valid dan benar.</span>
         </label>
         <button type="submit" id="btnGenerate" disabled
-                class="w-full px-5 py-3.5 bg-[#1f1c19] text-white text-[13px] font-semibold disabled:bg-[#e6e0d6] disabled:text-[#a49b8c] disabled:cursor-not-allowed">
+                class="w-full px-5 py-3.5 bg-[var(--ink)] text-[var(--paper)] text-[13px] font-semibold cursor-pointer touch-manipulation select-none transition hover:bg-[var(--accent)] active:scale-[0.98] active:bg-[var(--accent)] disabled:bg-[var(--line)] disabled:text-[var(--ink-faint)] disabled:cursor-not-allowed disabled:active:scale-100">
           Generate Dokumen PDF
         </button>
         <div id="status" class="hidden text-xs font-medium p-3 border"></div>
@@ -85,18 +86,21 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const show = (m, ok) => emanuNotify(m, ok);
   
-  cb.addEventListener('change', () => { btn.disabled = !cb.checked; });
+  let busy = false;   // blokir tap kedua walau DOM belum sempat ter-disable
+  cb.addEventListener('change', () => { if (!busy) btn.disabled = !cb.checked; });
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    if (!cb.checked) return;
-    btn.disabled = true; btn.textContent = 'Memproses berkas PDF...';
+    if (busy || !cb.checked) return;
+    const fd = new FormData(form);   // ambil SEBELUM checkbox di-disable (kontrol disabled tidak ikut terkirim)
+    busy = true; cb.disabled = true; btn.disabled = true; btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Memproses berkas PDF...';
     try {
-      const res = await fetch(@json(route('peminjaman.generate', $p)), { method: 'POST', headers: { Accept: 'application/json' }, body: new FormData(form) });
+      const res = await fetch(@json(route('peminjaman.generate', $p)), { method: 'POST', headers: { Accept: 'application/json' }, body: fd });
       const out = await res.json();
       if (res.ok && out.success) { show(out.message, true); setTimeout(() => location.reload(), 800); return; }
       show(out.message || 'Gagal membuat PDF.', false);
     } catch (err) { show('Gangguan jaringan, coba lagi.', false); }
-    btn.disabled = false; btn.textContent = 'Generate Dokumen PDF';
+    busy = false; cb.disabled = false; btn.disabled = !cb.checked; btn.removeAttribute('aria-busy'); btn.textContent = 'Generate Dokumen PDF';
   });
 });
 </script>

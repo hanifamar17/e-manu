@@ -9,6 +9,10 @@ use App\Models\KalenderAkademik;
 use Illuminate\Support\Facades\DB;
 use App\Models\Inventaris;
 use App\Models\BarangPinjaman;
+use App\Models\LabkompItem;
+use App\Models\LabkompPeminjaman;
+use App\Models\LabkompPeminjamanItem;
+use Illuminate\Support\Str;
 
 /**
  * Impor CSV / XLSX (jenis file dideteksi dari isi, bukan ekstensi).
@@ -24,6 +28,8 @@ class CsvImporter
         'guru_piket' => 'Guru piket',
         'inventaris' => 'Database sarpras (inventaris)',
         'barang_pinjaman' => 'Barang pinjaman (Peminjaman Aset)',
+        'labkomp_items' => 'Inventaris Lab Komp',
+        'labkomp_peminjaman' => 'Riwayat peminjaman Lab Komp',
     ];
 
     public const COLUMNS = [
@@ -33,6 +39,9 @@ class CsvImporter
         'guru_piket' => ['hari', 'nama'],
         'inventaris' => ['id', 'nama_barang', 'merk', 'kondisi', 'lokasi', 'tahun_pengadaan', 'sumber_dana', 'sub_bidang', 'jumlah_total', 'jumlah_dipinjam'],
         'barang_pinjaman' => ['id', 'nama_barang', 'merk', 'kondisi', 'lokasi', 'tahun_pengadaan', 'sumber_dana', 'sub_bidang', 'jumlah_total'],
+        'labkomp_items' => ['id', 'nama_barang', 'stok', 'satuan', 'kondisi', 'lokasi', 'catatan'],
+        // 1 baris = 1 barang dalam 1 peminjaman; baris dengan id sama digabung jadi 1 peminjaman
+        'labkomp_peminjaman' => ['id', 'nama_peminjam', 'email_peminjam', 'tgl_pinjam', 'tgl_kembali', 'status', 'catatan', 'kode_barang', 'nama_barang', 'qty'],
     ];
 
     public const REQUIRED = [
@@ -40,59 +49,72 @@ class CsvImporter
         'kelas' => ['nama_kelas'],
         'jadwal' => ['hari', 'nama_kelas', 'waktu', 'nama_mapel'],
         'guru_piket' => ['hari', 'nama'],
-        'inventaris' => ['id', 'nama_barang', 'sub_bidang', 'jumlah_total'],
-        'barang_pinjaman' => ['id', 'nama_barang', 'sub_bidang', 'jumlah_total'],
+        'inventaris' => ['nama_barang', 'sub_bidang', 'jumlah_total'],
+        'barang_pinjaman' => ['nama_barang', 'sub_bidang', 'jumlah_total'],
+        'labkomp_items' => ['nama_barang', 'stok'],
+        'labkomp_peminjaman' => ['id', 'nama_peminjam', 'tgl_pinjam', 'status', 'nama_barang', 'qty'],
     ];
 
+    /** Template = header saja (tanpa baris contoh). Contoh format ada di sheet "petunjuk" (NOTES). */
     public const SAMPLES = [
-        'kalender' => [
-            ['2026-08-17', '', 'HUT RI', 'libur'],
-            ['2026-12-10', '2026-12-15', 'Ujian Semester', 'akademik'],
-        ],
-        'kelas' => [['X-A', 'Pak Budi'], ['X-B', 'Bu Siti']],
-        'jadwal' => [
-            ['1', 'SENIN', 'X-A', '1', '07.00-07.45', 'Informatika', 'Pak Budi'],
-            ['2', 'SENIN', 'X-A', '2', '07.45-08.30', 'Qiroah Kitab: أدب العالم', 'Bu Siti'],
-        ],
-        'guru_piket' => [['SENIN', 'Pak Budi'], ['SENIN', 'Bu Siti']],
-        'inventaris' => [
-            ['INV-0001', 'Laptop', 'Asus', 'Baik', 'Lab Komputer 1', '2022', 'BOS', 'Lab Komputer', '10', '0'],
-            ['INV-0002', 'Proyektor', 'Epson', 'Rusak Ringan', 'Ruang Guru', '2020', 'Hibah', 'Waka & Guru', '2', '1'],
-        ],
-        'barang_pinjaman' => [
-            ['PJM-0001', 'Proyektor', 'Epson', 'Baik', 'Ruang Guru', '2020', 'Hibah', 'Waka & Guru', '2'],
-            ['PJM-0002', 'Sound System', 'Huper', 'Baik', 'Madrasah', '2022', 'BOS', 'Madrasah', '3'],
-        ],
+        'kalender' => [],
+        'kelas' => [],
+        'jadwal' => [],
+        'guru_piket' => [],
+        'inventaris' => [],
+        'barang_pinjaman' => [],
+        'labkomp_items' => [],
+        'labkomp_peminjaman' => [],
     ];
 
     public const NOTES = [
-        'kalender' => ['kategori: libur / agenda / akademik', 'tanggal_selesai kosong = 1 hari', 'tanggal: tulis YYYY-MM-DD (format default impor)'],
+        'kalender' => ['kategori: libur / agenda / akademik', 'tanggal_selesai kosong = 1 hari', 'tanggal: tulis DD-MM-YYYY, mis. 17-08-2026'],
         'kelas' => ['nama_kelas harus unik'],
         'jadwal' => ['hari: SENIN / SELASA / RABU / KAMIS / JUMAT / SABTU', 'id = urutan sesi (angka)', 'waktu: teks, mis. 07.00-07.45'],
         'guru_piket' => ['hari: SENIN / SELASA / RABU / KAMIS / JUMAT / SABTU'],
         'inventaris' => [
-            'id = kode barang (INV-0001), jangan diubah: dipakai riwayat peminjaman',
+            'id = kode barang (INV-0001). Barang BARU: kosongkan id, sistem isi otomatis (kode terakhir + 1)',
+            'Barang lama (hasil unduhan Data saat ini): jangan ubah id, dipakai riwayat peminjaman',
             'kondisi: Baik / Rusak Ringan / Rusak Berat (kosong = Baik)',
             'sumber_dana: BOS / BOSDA / Hibah / Lainnya (boleh kosong)',
             'sub_bidang: Perpustakaan / Lab IPA / Lab Komputer / Asrama / Waka & Guru / Madrasah',
             'jumlah_dipinjam kosong = 0, tidak boleh lebih dari jumlah_total',
         ],
         'barang_pinjaman' => [
-            'id = kode barang pinjaman (PJM-0001), maks 20 karakter, jangan diubah: dipakai riwayat peminjaman',
+            'id = kode barang pinjaman (PJM-0001), maks 20 karakter. Barang BARU: kosongkan id, sistem isi otomatis (kode terakhir + 1)',
+            'Barang lama (hasil unduhan Data saat ini): jangan ubah id, dipakai riwayat peminjaman',
             'kondisi: Baik / Rusak Ringan / Rusak Berat (kosong = Baik)',
             'sumber_dana: BOS / BOSDA / Hibah / Lainnya (boleh kosong)',
             'sub_bidang: Perpustakaan / Lab IPA / Lab Komputer / Asrama / Waka & Guru / Madrasah',
             'stok dipinjam diisi otomatis oleh sistem, tidak ada di file',
             'mode Ganti ditolak kalau ada barang yang masih dipinjam: pakai mode Tambah',
         ],
+        'labkomp_items' => [
+            'id = kode barang (INV-0001). Barang BARU: kosongkan id, sistem isi otomatis (kode terakhir + 1)',
+            'stok = stok TERSEDIA saat ini (sudah dikurangi yang sedang dipinjam)',
+            'satuan: Unit / Buah / Set / Pcs / Roll / Box (kosong = Unit)',
+            'kondisi: Baik / Rusak Ringan / Rusak Berat (kosong = Baik)',
+            'mode Ganti ditolak kalau sudah ada riwayat peminjaman: pakai mode Tambah',
+        ],
+        'labkomp_peminjaman' => [
+            'Impor labkomp_items DULU: barang di sini harus sudah ada',
+            '1 baris = 1 barang. Baris dengan id (kode peminjaman) sama digabung jadi 1 peminjaman',
+            'id wajib (kode lama dari Sheets boleh, mis. LK-241118-AB12). nama_peminjam, tgl_pinjam, status sama di semua baris satu id',
+            'status: dipinjam / dikembalikan. tgl_kembali kosong = belum kembali',
+            'kode_barang = kode di Inventaris Lab Komp (INV-xxxx); kosong = dicocokkan lewat nama_barang',
+            'qty bulat >= 1. Impor ini TIDAK mengubah stok barang',
+            'tanggal: DD-MM-YYYY. mode Ganti ditolak kalau ada yang masih dipinjam',
+        ],
     ];
 
-    public const DATE_FORMATS = ['Y-m-d' => 'YYYY-MM-DD', 'd/m/Y' => 'DD/MM/YYYY', 'm/d/Y' => 'MM/DD/YYYY'];
+    public const DATE_FORMATS = ['d-m-Y' => 'DD-MM-YYYY', 'Y-m-d' => 'YYYY-MM-DD', 'd/m/Y' => 'DD/MM/YYYY', 'm/d/Y' => 'MM/DD/YYYY'];
+
+    public const DEFAULT_DATE_FORMAT = 'd-m-Y';
 
     private const MAX_ROWS = 5000;
 
     /** @return array{inserted:int, errors:string[]} */
-    public function import(string $type, string $path, bool $replace = true, string $dateFormat = 'Y-m-d'): array
+    public function import(string $type, string $path, bool $replace = true, string $dateFormat = self::DEFAULT_DATE_FORMAT): array
     {
         if (! isset(self::TYPES[$type])) {
             return ['inserted' => 0, 'errors' => ["Tipe tidak dikenal: {$type}"]];
@@ -128,6 +150,8 @@ class CsvImporter
             'guru_piket' => $this->parsePiket($rows),
             'inventaris' => $this->parseInventaris($rows),
             'barang_pinjaman' => $this->parseInventaris($rows),
+            'labkomp_items' => $this->parseLabkompItems($rows),
+            'labkomp_peminjaman' => $this->parseLabkompPeminjaman($rows, $dateFormat),
         };
 
         if ($errors || ! $valid) {
@@ -137,8 +161,12 @@ class CsvImporter
         if ($type === 'barang_pinjaman' && ($guard = $this->guardBarangPinjaman($valid, $replace))) {
             return ['inserted' => 0, 'errors' => $guard];
         }
+        if (str_starts_with($type, 'labkomp_') && ($guard = $this->guardLabkomp($type, $replace))) {
+            return ['inserted' => 0, 'errors' => $guard];
+        }
 
-        DB::transaction(function () use ($type, $valid, $replace) {
+        $generated = [];
+        DB::transaction(function () use ($type, &$valid, $replace, &$generated) {
             $model = match ($type) {
                 'kalender' => KalenderAkademik::class,
                 'kelas' => Kelas::class,
@@ -146,9 +174,20 @@ class CsvImporter
                 'guru_piket' => GuruPiket::class,
                 'inventaris' => Inventaris::class,
                 'barang_pinjaman' => BarangPinjaman::class,
+                'labkomp_items' => LabkompItem::class,
+                'labkomp_peminjaman' => LabkompPeminjaman::class,
             };
             if ($replace) {
+                if ($type === 'labkomp_peminjaman') {
+                    LabkompPeminjamanItem::query()->delete();
+                }
                 $model::query()->delete();
+            }
+            $valid = $this->assignKodes($type, $valid, $generated);
+            if ($type === 'labkomp_peminjaman') {
+                $this->writePeminjaman($valid, $replace);
+
+                return;
             }
             $now = now();
             foreach (array_chunk($valid, 200) as $chunk) {
@@ -164,6 +203,12 @@ class CsvImporter
                     }
                     continue;
                 }
+                if ($type === 'labkomp_items' && ! $replace) {
+                    foreach ($chunk as $r) {
+                        LabkompItem::updateOrCreate(['kode' => $r['kode']], array_diff_key($r, ['kode' => 1]));
+                    }
+                    continue;
+                }
                 if ($type === 'barang_pinjaman' && ! $replace) {
                     foreach ($chunk as $r) {
                         // jumlah_dipinjam tidak disentuh: hitungan pinjam hidup di sistem
@@ -175,7 +220,7 @@ class CsvImporter
             }
         });
 
-        return ['inserted' => count($valid), 'errors' => []];
+        return ['inserted' => count($valid), 'errors' => [], 'generated' => $generated];
     }
 
     private function isXlsx(string $path): bool
@@ -331,7 +376,7 @@ class CsvImporter
             $kat = strtolower($r['kategori'] ?? '');
             $ket = $r['keterangan'] ?? '';
             if (! $mulai || ! $selesai) {
-                $err[] = "Baris {$n}: tanggal tidak valid (format {$fmt}).";
+                $err[] = "Baris {$n}: tanggal tidak valid (tulis ".self::DATE_FORMATS[$fmt].").";
             } elseif ($selesai < $mulai) {
                 $err[] = "Baris {$n}: tanggal_selesai < tanggal_mulai.";
             } elseif ($ket === '') {
@@ -423,9 +468,9 @@ class CsvImporter
             $total = $r['jumlah_total'] ?? '';
             $pinjam = ($r['jumlah_dipinjam'] ?? '') === '' ? '0' : $r['jumlah_dipinjam'];
 
-            if ($kode === '' || $nama === '') {
-                $err[] = "Baris {$n}: id / nama_barang kosong.";
-            } elseif (isset($seen[$kode])) {
+            if ($nama === '') {
+                $err[] = "Baris {$n}: nama_barang kosong.";
+            } elseif ($kode !== '' && isset($seen[$kode])) {
                 $err[] = "Baris {$n}: id '{$kode}' duplikat.";
             } elseif (! $kondisi) {
                 $err[] = "Baris {$n}: kondisi '{$rawKondisi}' harus: ".implode('/', Inventaris::KONDISI).'.';
@@ -440,9 +485,11 @@ class CsvImporter
             } elseif ((int) $pinjam > (int) $total) {
                 $err[] = "Baris {$n}: jumlah_dipinjam > jumlah_total.";
             } else {
-                $seen[$kode] = true;
+                if ($kode !== '') {
+                    $seen[$kode] = true;
+                }
                 $ok[] = [
-                    'kode' => $kode,
+                    'kode' => $kode === '' ? null : $kode, // null = dibuat otomatis (assignKodes)
                     'nama_barang' => $nama,
                     'merk' => ($r['merk'] ?? '') ?: null,
                     'kondisi' => $kondisi,
@@ -459,7 +506,51 @@ class CsvImporter
         return [$ok, $err];
     }
     
-        private function guardBarangPinjaman(array $valid, bool $replace): array
+    /**
+     * Isi kode otomatis (INV-/PJM- + angka maks + 1) untuk baris tanpa id.
+     * Dipanggil di dalam transaksi; lockForUpdate mencegah dua impor bersamaan memakai nomor sama.
+     *
+     * @param  string[]  $generated  diisi kode yang dibuat
+     */
+    private function assignKodes(string $type, array $valid, array &$generated): array
+    {
+        if (! in_array($type, ['inventaris', 'barang_pinjaman', 'labkomp_items'], true)) {
+            return $valid;
+        }
+        if (! array_filter($valid, fn ($r) => $r['kode'] === null)) {
+            return $valid;
+        }
+
+        $prefix = $type === 'barang_pinjaman' ? 'PJM-' : 'INV-';
+        $model = match ($type) {
+            'inventaris' => Inventaris::class,
+            'barang_pinjaman' => BarangPinjaman::class,
+            'labkomp_items' => LabkompItem::class,
+        };
+        $codes = array_merge(
+            $model::query()->lockForUpdate()->pluck('kode')->all(),
+            array_filter(array_column($valid, 'kode'))
+        );
+
+        $max = 0;
+        foreach ($codes as $k) {
+            if (preg_match('/^'.preg_quote($prefix, '/').'(\d+)$/', (string) $k, $m)) {
+                $max = max($max, (int) $m[1]);
+            }
+        }
+
+        foreach ($valid as &$r) {
+            if ($r['kode'] === null) {
+                $r['kode'] = $prefix.str_pad((string) ++$max, 4, '0', STR_PAD_LEFT);
+                $generated[] = $r['kode'];
+            }
+        }
+        unset($r);
+
+        return $valid;
+    }
+
+    private function guardBarangPinjaman(array $valid, bool $replace): array
     {
         if ($replace) {
             $n = BarangPinjaman::where('jumlah_dipinjam', '>', 0)->count();
@@ -470,6 +561,9 @@ class CsvImporter
         $dipinjam = BarangPinjaman::pluck('jumlah_dipinjam', 'kode');
         $err = [];
         foreach ($valid as $r) {
+            if ($r['kode'] === null) {
+                continue; // kode baru otomatis: belum ada di DB
+            }
             if (strlen($r['kode']) > 20) {
                 $err[] = "id '{$r['kode']}' lebih dari 20 karakter.";
             }
@@ -482,6 +576,170 @@ class CsvImporter
         return $err;
     }
     
+    private function parseLabkompItems(array $rows): array
+    {
+        $ok = $err = $seen = [];
+        foreach ($rows as $n => $r) {
+            $kode = strtoupper($r['id'] ?? '');
+            $nama = $r['nama_barang'] ?? '';
+            $stok = $r['stok'] ?? '';
+            $rawKondisi = $r['kondisi'] ?? '';
+            $rawSatuan = $r['satuan'] ?? '';
+            $kondisi = $rawKondisi === '' ? 'Baik' : $this->pick($rawKondisi, LabkompItem::KONDISI);
+            $satuan = $rawSatuan === '' ? 'Unit' : $this->pick($rawSatuan, LabkompItem::SATUAN);
+
+            if ($nama === '') {
+                $err[] = "Baris {$n}: nama_barang kosong.";
+            } elseif ($kode !== '' && isset($seen[$kode])) {
+                $err[] = "Baris {$n}: id '{$kode}' duplikat.";
+            } elseif (! ctype_digit($stok)) {
+                $err[] = "Baris {$n}: stok harus angka bulat >= 0.";
+            } elseif (! $satuan) {
+                $err[] = "Baris {$n}: satuan '{$rawSatuan}' harus: ".implode('/', LabkompItem::SATUAN).'.';
+            } elseif (! $kondisi) {
+                $err[] = "Baris {$n}: kondisi '{$rawKondisi}' harus: ".implode('/', LabkompItem::KONDISI).'.';
+            } else {
+                if ($kode !== '') {
+                    $seen[$kode] = true;
+                }
+                $ok[] = [
+                    'kode' => $kode === '' ? null : $kode, // null = otomatis (assignKodes)
+                    'nama_barang' => $nama,
+                    'stok' => (int) $stok,
+                    'satuan' => $satuan,
+                    'kondisi' => $kondisi,
+                    'lokasi' => ($r['lokasi'] ?? '') ?: null,
+                    'catatan' => ($r['catatan'] ?? '') ?: null,
+                ];
+            }
+        }
+
+        return [$ok, $err];
+    }
+
+    /** Baris dengan id sama digabung jadi 1 peminjaman + banyak item. */
+    private function parseLabkompPeminjaman(array $rows, string $fmt): array
+    {
+        $all = LabkompItem::all(['id', 'kode', 'nama_barang']);
+        $byKode = $all->keyBy(fn ($i) => strtoupper($i->kode));
+        $byNama = $all->keyBy(fn ($i) => mb_strtolower($i->nama_barang));
+
+        $groups = $err = [];
+        foreach ($rows as $n => $r) {
+            $kode = strtoupper($r['id'] ?? '');
+            $peminjam = $r['nama_peminjam'] ?? '';
+            $tgl = $this->parseDate($r['tgl_pinjam'] ?? '', $fmt);
+            $rawKembali = $r['tgl_kembali'] ?? '';
+            $kembali = $rawKembali === '' ? null : $this->parseDate($rawKembali, $fmt);
+            $status = $this->pick($r['status'] ?? '', [LabkompPeminjaman::DIPINJAM, LabkompPeminjaman::DIKEMBALIKAN]);
+            $nama = $r['nama_barang'] ?? '';
+            $kb = strtoupper($r['kode_barang'] ?? '');
+            $qty = $r['qty'] ?? '';
+            $item = ($kb !== '' ? ($byKode[$kb] ?? null) : null) ?? ($byNama[mb_strtolower($nama)] ?? null);
+
+            if ($kode === '') {
+                $err[] = "Baris {$n}: id (kode peminjaman) kosong.";
+            } elseif ($peminjam === '') {
+                $err[] = "Baris {$n}: nama_peminjam kosong.";
+            } elseif (! $tgl) {
+                $err[] = "Baris {$n}: tgl_pinjam tidak valid (tulis ".self::DATE_FORMATS[$fmt].').';
+            } elseif ($rawKembali !== '' && ! $kembali) {
+                $err[] = "Baris {$n}: tgl_kembali tidak valid (tulis ".self::DATE_FORMATS[$fmt].').';
+            } elseif ($kembali && $kembali < $tgl) {
+                $err[] = "Baris {$n}: tgl_kembali < tgl_pinjam.";
+            } elseif (! $status) {
+                $err[] = "Baris {$n}: status '".($r['status'] ?? '')."' harus: dipinjam / dikembalikan.";
+            } elseif (! $item) {
+                $err[] = "Baris {$n}: barang '{$nama}' ({$kb}) tidak ada di Inventaris Lab Komp. Impor inventaris dulu.";
+            } elseif (! ctype_digit($qty) || (int) $qty < 1) {
+                $err[] = "Baris {$n}: qty harus angka bulat >= 1.";
+            } else {
+                $head = [
+                    'kode' => $kode,
+                    'nama_peminjam' => $peminjam,
+                    'email_peminjam' => ($r['email_peminjam'] ?? '') ?: null,
+                    'tgl_pinjam' => $tgl,
+                    'tgl_kembali' => $kembali,
+                    'status' => $status,
+                    'catatan' => ($r['catatan'] ?? '') ?: null,
+                ];
+                $line = ['item_id' => $item->id, 'kode_barang' => $item->kode, 'nama_barang' => $nama, 'qty' => (int) $qty];
+
+                if (! isset($groups[$kode])) {
+                    $groups[$kode] = $head + ['items' => [$line]];
+                    continue;
+                }
+                $g = $groups[$kode];
+                if ($g['nama_peminjam'] !== $head['nama_peminjam'] || $g['tgl_pinjam'] !== $head['tgl_pinjam'] || $g['status'] !== $head['status']) {
+                    $err[] = "Baris {$n}: id '{$kode}' sama tapi nama_peminjam / tgl_pinjam / status beda dari baris sebelumnya.";
+                } elseif (in_array($item->id, array_column($g['items'], 'item_id'), true)) {
+                    $err[] = "Baris {$n}: barang '{$item->kode}' dobel di peminjaman '{$kode}'.";
+                } else {
+                    $groups[$kode]['items'][] = $line;
+                }
+            }
+        }
+
+        return [array_values($groups), $err];
+    }
+
+    private function writePeminjaman(array $groups, bool $replace): void
+    {
+        foreach ($groups as $g) {
+            $items = $g['items'];
+            unset($g['items']);
+            $g['dikembalikan_at'] = ($g['status'] === LabkompPeminjaman::DIKEMBALIKAN && $g['tgl_kembali'])
+                ? $g['tgl_kembali'].' 00:00:00' : null;
+
+            $p = $replace ? null : LabkompPeminjaman::where('kode', $g['kode'])->first();
+            if ($p) {
+                $p->update($g); // uuid lama dipertahankan (link bukti tetap hidup)
+                $p->items()->delete();
+            } else {
+                $p = LabkompPeminjaman::create($g + ['uuid' => (string) Str::uuid()]);
+            }
+            $p->items()->createMany($items);
+        }
+    }
+
+    private function guardLabkomp(string $type, bool $replace): array
+    {
+        if (! $replace) {
+            return [];
+        }
+        if ($type === 'labkomp_items') {
+            $n = LabkompPeminjamanItem::count();
+
+            return $n ? ["Mode Ganti ditolak: {$n} baris riwayat peminjaman memakai barang ini. Pakai mode Tambah."] : [];
+        }
+        $n = LabkompPeminjaman::where('status', LabkompPeminjaman::DIPINJAM)->count();
+
+        return $n ? ["Mode Ganti ditolak: {$n} peminjaman Lab Komp masih berstatus dipinjam. Kembalikan dulu atau pakai mode Tambah."] : [];
+    }
+
+    /**
+     * Data asli untuk Ekspor, urutan kolom = COLUMNS[$type], tanggal DD-MM-YYYY.
+     * Dipakai ExcelTemplate::build($type, true) untuk tipe labkomp_*.
+     *
+     * @return array<int, array<int, mixed>>
+     */
+    public function exportRows(string $type): array
+    {
+        $f = fn ($d) => $d ? $d->format('d-m-Y') : '';
+
+        return match ($type) {
+            'labkomp_items' => LabkompItem::orderBy('kode')->get()
+                ->map(fn ($i) => [$i->kode, $i->nama_barang, $i->stok, $i->satuan, $i->kondisi, $i->lokasi, $i->catatan])
+                ->all(),
+            'labkomp_peminjaman' => LabkompPeminjaman::with('items')->orderBy('tgl_pinjam')->orderBy('id')->get()
+                ->flatMap(fn ($p) => $p->items->map(fn ($it) => [
+                    $p->kode, $p->nama_peminjam, $p->email_peminjam, $f($p->tgl_pinjam), $f($p->tgl_kembali),
+                    $p->status, $p->catatan, $it->kode_barang, $it->nama_barang, $it->qty,
+                ]))->all(),
+            default => [],
+        };
+    }
+
     private function parsePiket(array $rows): array
     {
         $ok = $err = [];
