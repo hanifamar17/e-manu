@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 
 class Perizinan extends Model
 {
@@ -45,12 +46,15 @@ class Perizinan extends Model
     ];
 
     protected static function booted(): void
-    {
-        static::creating(function (self $m) {
-            $m->uuid ??= (string) Str::uuid();
-            $m->id_perizinan ??= self::buatId($m->tanggal_mulai);
-        });
-    }
+{
+    static::creating(function (self $m) {
+        $m->uuid ??= (string) Str::uuid();
+        $m->id_perizinan ??= self::buatId($m->tanggal_mulai);
+    });
+
+    static::saved(fn () => Cache::forget('layar.izin'));
+    static::deleted(fn () => Cache::forget('layar.izin'));
+}
 
     /** PZ-YYYYMMDD-XXXX, unik. */
     public static function buatId($tanggal): string

@@ -13,6 +13,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Akun dipakai bersama (1 akun guru, 1 akun wali_kelas), jadi identitas orang
@@ -341,10 +342,11 @@ class PerizinanController extends Controller
     }
 
     public function layarData(string $token): JsonResponse
-    {
-        $this->cekToken($token);
-        $now = now();
+{
+    $this->cekToken($token);
 
+    $data = Cache::remember('layar.izin', 20, function () {
+        $now = now();
         $rank = ['berlangsung' => 0, 'akan' => 1, 'selesai' => 2];
         $rows = Perizinan::berlakuHariIni()->orderBy('tanggal_mulai')->orderBy('jam_mulai')->get()
             ->map(function (Perizinan $p) use ($now) {
@@ -366,14 +368,18 @@ class PerizinanController extends Controller
                 ];
             })
             ->sortBy(fn ($r) => [$rank[$r['status']], $r['ts']])
-            ->values();
+            ->values()
+            ->all();
 
-        return response()->json([
+        return [
             'tanggal' => $now->translatedFormat('l, j F Y'),
             'diperbarui' => $now->format('H:i:s'),
             'items' => $rows,
-        ])->header('Cache-Control', 'no-store');
-    }
+        ];
+    });
+
+    return response()->json($data)->header('Cache-Control', 'no-store');
+}
 
     private function cekToken(string $token): void
     {
