@@ -42,6 +42,7 @@ Route::prefix('booking-ruangan')->name('booking_ruangan.')->group(function () {
     Route::get('/jadwal', [BookingRuanganController::class, 'jadwal'])->name('jadwal_penggunaan');
     Route::get('/form', [BookingRuanganController::class, 'form'])->name('booking_form_page');
     Route::post('/form', [BookingRuanganController::class, 'store'])->middleware('throttle:5,1')->name('booking_store');
+    Route::get('/ringkasan/{uuid}', [BookingRuanganController::class, 'ringkasan'])->whereUuid('uuid')->name('ringkasan');
 });
 
 // --- Langkah 5: jadwal pelajaran (publik). /kelas/<nama> & /hari/<hari> dihapus: landing sudah memuat semua. ---
@@ -132,6 +133,7 @@ Route::prefix('perizinan')->name('perizinan.')->group(function () {
         Route::get('/form', [PZ::class, 'form'])->name('form');
         Route::post('/form', [PZ::class, 'store'])->middleware('throttle:20,1')->name('store');
         Route::get('/api/siswa', [PZ::class, 'siswa'])->middleware('throttle:60,1')->name('siswa');
+        Route::get('/api/kelas', [PZ::class, 'siswaKelas'])->middleware('throttle:60,1')->name('kelas');
         Route::get('/riwayat', [PZ::class, 'riwayat'])->name('riwayat');
         Route::get('/riwayat/{perizinan}', [PZ::class, 'show'])->name('show');
         Route::post('/riwayat/{perizinan}/batal', [PZ::class, 'batal'])->name('batal');

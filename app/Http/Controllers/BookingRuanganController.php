@@ -6,6 +6,7 @@ use App\Models\BookingRuangan;
 use App\Models\KalenderAkademik;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -82,7 +83,7 @@ class BookingRuanganController extends Controller
             return back()->withInput()->withErrors(['waktu_mulai' => 'Bentrok dengan jadwal yang sudah disetujui. Cek halaman Jadwal Penggunaan.']);
         }
 
-        BookingRuangan::create([
+        $b = BookingRuangan::create([
             'nama_pemesan' => $data['nama_pemesan'],
             'email' => $data['email'],
             'eksternal' => $data['eksternal'] === '1',
@@ -94,7 +95,29 @@ class BookingRuanganController extends Controller
             'status' => BookingRuangan::PENDING,
         ]);
 
-        return redirect()->route('booking_ruangan.booking_landing')
-            ->with('status', 'Pengajuan terkirim. Hasil persetujuan dikirim ke email Anda.');
+        return redirect()->route('booking_ruangan.ringkasan', $b->uuid)
+            ->with('status', 'Pengajuan tersimpan. Langkah terakhir: kirim ke WhatsApp petugas Lab Komputer agar diproses.');
+    }
+
+    /** Ringkasan + perintah kirim WhatsApp. Publik via uuid (tidak bisa ditebak), tidak diindeks. */
+    public function ringkasan(string $uuid): Response
+    {
+        $b = BookingRuangan::where('uuid', $uuid)->firstOrFail();
+
+        $pesan = "Assalamualaikum. Mohon ACC penggunaan Lab Komputer:\n"
+            ."No. pengajuan: {$b->kode}\n"
+            ."Kegiatan: {$b->nama_kegiatan}\n"
+            ."Pemesan: {$b->nama_pemesan} (".($b->eksternal ? 'eksternal' : 'internal').")\n"
+            .'Tanggal: '.$b->tanggal->translatedFormat('l, j F Y')."\n"
+            ."Jam: {$b->jam}\n"
+            .($b->catatan_tambahan ? "Catatan: {$b->catatan_tambahan}\n" : '')
+            ."\nPengajuan sudah tercatat di e-manu (Admin > Pengajuan Booking). Mohon dicek. Terima kasih.";
+
+        return response()->view('booking_ruangan.ringkasan', [
+            'b' => $b,
+            'pesan' => $pesan,
+            'waUrl' => 'https://wa.me/?text='.rawurlencode($pesan),
+            'noAuth' => true,
+        ])->header('X-Robots-Tag', 'noindex, nofollow')->header('Cache-Control', 'no-store');
     }
 }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class BookingRuangan extends Model
 {
@@ -14,7 +15,7 @@ class BookingRuangan extends Model
     protected $table = 'booking_ruangan';
 
     protected $fillable = [
-        'nama_pemesan', 'email', 'eksternal', 'nama_kegiatan', 'tanggal',
+        'uuid', 'nama_pemesan', 'email', 'eksternal', 'nama_kegiatan', 'tanggal',
         'waktu_mulai', 'waktu_selesai', 'catatan_tambahan', 'status',
         'alasan_penolakan', 'ditinjau_oleh', 'ditinjau_pada',
     ];
@@ -24,6 +25,11 @@ class BookingRuangan extends Model
         'tanggal' => 'date',
         'ditinjau_pada' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(fn (self $m) => $m->uuid ??= (string) Str::uuid());
+    }
 
     public function scopeDisetujui(Builder $q): Builder
     {
@@ -44,5 +50,11 @@ class BookingRuangan extends Model
     public function getJamAttribute(): string
     {
         return substr($this->waktu_mulai, 0, 5).' - '.substr($this->waktu_selesai, 0, 5);
+    }
+
+    /** Nomor pengajuan untuk dikutip di WhatsApp: BK-00012. */
+    public function getKodeAttribute(): string
+    {
+        return 'BK-'.str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
     }
 }

@@ -5,60 +5,73 @@
 @php
     $wali = auth()->user()->hasRole('wali_kelas', 'admin');
     $menu = [
-        ['route' => 'perizinan.form', 'icon' => 'ph-note-pencil', 'judul' => 'Buat Izin', 'desc' => 'Formulir izin siswa baru'],
-        ['route' => 'perizinan.riwayat', 'icon' => 'ph-clock-counter-clockwise', 'judul' => 'Riwayat', 'desc' => 'Cari & lihat semua izin'],
+        ['route' => 'perizinan.form', 'judul' => 'Buat Izin', 'desc' => 'Formulir izin siswa baru'],
+        ['route' => 'perizinan.riwayat', 'judul' => 'Riwayat', 'desc' => 'Cari & lihat semua izin'],
     ];
+    if ($wali) {
+        array_splice($menu, 1, 0, [['route' => 'perizinan.acc', 'judul' => 'ACC Izin', 'desc' => $menunggu.' izin menunggu persetujuan']]);
+    }
     $tv = config('emanu.layar_token');
     if ($tv) {
-        $menu[] = ['url' => route('perizinan.layar', $tv), 'blank' => true, 'icon' => 'ph-television-simple', 'judul' => 'Layar TV', 'desc' => 'Daftar izin hari ini, tampil otomatis (tab baru)'];
-    }
-    if ($wali) {
-        array_splice($menu, 1, 0, [['route' => 'perizinan.acc', 'icon' => 'ph-seal-check', 'judul' => 'ACC Izin', 'desc' => $menunggu.' izin menunggu persetujuan']]);
+        $menu[] = ['url' => route('perizinan.layar', $tv), 'blank' => true, 'judul' => 'Layar TV', 'desc' => 'Daftar izin hari ini, tampil otomatis (tab baru)'];
     }
 @endphp
-<div class="max-w-5xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
-  <a data-lock href="{{ route('repository') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] cursor-pointer touch-manipulation select-none transition active:scale-95">
-    <i class="ph ph-arrow-left"></i> Repositori
-  </a>
-  <h1 class="page-title text-2xl font-bold mt-8 mb-6">Perizinan Siswa</h1>
+<div class="max-w-[460px] mx-auto px-5 pt-14 pb-20 bg-[#faf8f5] text-[#1f1c19] font-['Inter',ui-sans-serif,system-ui,sans-serif] overflow-x-clip">
+
+  <div class="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#a8501f] mb-3">
+    Layanan Siswa
+  </div>
+
+  <h1 class="text-[26px] leading-[1.15] font-semibold font-['Source_Serif_4',ui-serif,Georgia,serif] tracking-[-0.01em] mb-3 break-words min-w-0">
+    Perizinan Siswa
+  </h1>
+
+  <p class="text-[14px] leading-relaxed max-w-[36ch] mb-8 text-[#6b6459]">
+    Buat izin siswa, proses persetujuan wali kelas, dan cari riwayat perizinan.
+  </p>
 
   @include('partials.flash')
 
-  <div class="grid grid-cols-2 gap-3 mb-8">
-    <div class="card-outline p-4 border border-[var(--line)]">
-      <p class="eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] m-0">Izin berlaku hari ini</p>
-      <p class="text-3xl font-bold m-0 mt-1">{{ $hariIni->count() }}</p>
+  <div class="grid grid-cols-2 border-t border-b border-[#e6e0d6] mb-8">
+    <div class="py-4 pr-4">
+      <p class="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#a49b8c] m-0">Siswa izin hari ini</p>
+      <p class="text-[26px] leading-[1.15] font-semibold font-['Source_Serif_4',ui-serif,Georgia,serif] tabular-nums m-0 mt-1">{{ $hariIni }}</p>
     </div>
-    <div class="card-outline p-4 border border-[var(--line)]">
-      <p class="eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] m-0">Menunggu ACC</p>
-      <p class="text-3xl font-bold m-0 mt-1">{{ $menunggu }}</p>
+    <div class="py-4 pl-4 border-l border-[#e6e0d6]">
+      <p class="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#a49b8c] m-0">Menunggu ACC</p>
+      <p class="text-[26px] leading-[1.15] font-semibold font-['Source_Serif_4',ui-serif,Georgia,serif] tabular-nums m-0 mt-1 {{ $menunggu > 0 ? 'text-[#a8501f]' : '' }}">{{ $menunggu }}</p>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
-    @foreach ($menu as $m)
-      <a data-lock href="{{ $m['url'] ?? route($m['route']) }}"{!! empty($m['blank']) ? '' : ' target="_blank" rel="noopener"' !!}
-         class="group card-outline flex items-start gap-3 p-4 border border-[var(--line)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)] active:scale-[0.98] no-underline text-inherit">
-        <i class="ph {{ $m['icon'] }} text-xl opacity-70 transition group-hover:opacity-100"></i>
-        <div>
-          <p class="font-bold text-[15px] m-0">{{ $m['judul'] }}</p>
-          <p class="text-[12px] text-[var(--ink-soft)] m-0 mt-0.5 transition group-hover:text-[var(--paper)]/75">{{ $m['desc'] }}</p>
+  <nav class="border-t border-[#e6e0d6]">
+    @foreach ($menu as $i => $m)
+      <a href="{{ $m['url'] ?? route($m['route']) }}"{!! empty($m['blank']) ? '' : ' target="_blank" rel="noopener"' !!}
+        class="group flex items-center gap-4 py-5 border-b border-[#e6e0d6] no-underline transition-all duration-150 ease-out touch-manipulation cursor-pointer select-none [-webkit-tap-highlight-color:transparent] hover:pl-[6px] hover:bg-[#1f1c19]/[0.02] active:bg-[#f3e6dc] active:scale-[0.99]">
+        <span class="font-['Source_Serif_4',ui-serif,Georgia,serif] tabular-nums text-[15px] w-6 shrink-0 {{ $i === 0 ? 'text-[#a8501f]' : 'text-[#a49b8c] group-hover:text-[#a8501f]' }} transition-colors duration-150">
+          {{ sprintf('%02d', $i + 1) }}
+        </span>
+        <div class="flex-1 min-w-0">
+          <h3 class="text-[15px] font-semibold m-0 text-[#1f1c19] transition-colors duration-150 group-hover:text-[#a8501f]">
+            {{ $m['judul'] }}
+          </h3>
+          <p class="text-[13px] mt-0.5 m-0 text-[#a49b8c]">
+            {{ $m['desc'] }}
+          </p>
         </div>
+        <svg class="w-4 h-4 shrink-0 {{ $i === 0 ? 'text-[#a8501f]' : 'text-[#a49b8c] group-hover:text-[#a8501f]' }} transition-all duration-150 group-hover:translate-x-[3px]" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3.333 8h9.334"/><path d="M8 3.333 12.667 8 8 12.667"/>
+        </svg>
       </a>
     @endforeach
-  </div>
+  </nav>
 
-  <p class="eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] mb-3">Izin berlaku hari ini</p>
-  <div class="space-y-2">
-    @forelse ($hariIni as $p)
-      <a data-lock href="{{ route('perizinan.show', $p) }}" class="card-outline p-3 border border-[var(--line)] flex flex-wrap items-center justify-between gap-2 text-sm no-underline text-inherit transition hover:border-[var(--ink)] cursor-pointer">
-        <span class="font-semibold">{{ $p->nama_siswa }} <span class="mono text-[11px] text-[var(--ink-soft)] font-normal">&middot; {{ $p->kelas_umum }} &middot; {{ $p->durasi }}</span></span>
-        <span class="mono text-[11px]">{{ substr($p->jam_mulai, 0, 5) }}&ndash;{{ substr($p->jam_selesai, 0, 5) }} &middot; {{ $p->alasan }}</span>
-      </a>
-    @empty
-      <div class="card-outline py-8 text-center mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-faint)]">— KOSONG —</div>
-    @endforelse
-  </div>
+  <a href="{{ route('repository') }}"
+    class="inline-flex items-center gap-2 mt-8 text-[13px] font-medium text-[#6b6459] no-underline transition-all duration-150 touch-manipulation cursor-pointer select-none hover:text-[#1f1c19] hover:-translate-x-[2px] active:scale-[0.97]">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12.667 8H3.333"/><path d="M8 12.667 3.333 8 8 3.333"/>
+    </svg>
+    Kembali ke Dashboard Utama
+  </a>
+
 </div>
-@include('partials.lock')
 @endsection

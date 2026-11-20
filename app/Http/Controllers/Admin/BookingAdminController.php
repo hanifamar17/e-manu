@@ -20,9 +20,13 @@ class BookingAdminController extends Controller
             $status = BookingRuangan::PENDING;
         }
 
-        $items = BookingRuangan::where('status', $status)
-            ->orderBy('tanggal')->orderBy('waktu_mulai')
-            ->paginate(20)->withQueryString();
+        $cari = trim((string) $request->query('q'));
+        $q = BookingRuangan::where('status', $status);
+        if ($cari !== '') {
+            $like = '%'.addcslashes($cari, '%_\\').'%';
+            $q->where(fn ($w) => $w->where('nama_kegiatan', 'like', $like)->orWhere('nama_pemesan', 'like', $like)->orWhere('email', 'like', $like));
+        }
+        $items = $q->orderBy('tanggal')->orderBy('waktu_mulai')->paginate(20)->withQueryString();
 
         // Tandai pending yang bentrok dengan yang sudah disetujui.
         $items->getCollection()->each(function ($b) {
@@ -33,6 +37,7 @@ class BookingAdminController extends Controller
         return view('admin.booking.index', [
             'items' => $items,
             'status' => $status,
+            'cari' => $cari,
             'jumlahPending' => BookingRuangan::where('status', BookingRuangan::PENDING)->count(),
         ]);
     }

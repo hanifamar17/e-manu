@@ -4,41 +4,62 @@ namespace App\Http\Controllers;
 
 use App\Models\Kelas;
 use App\Models\Perizinan;
+use App\Models\PerizinanSiswa;
 use App\Models\Siswa;
 use App\Services\KelasMatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * Akun dipakai bersama (1 akun guru, 1 akun wali_kelas), jadi identitas orang
  * TIDAK diambil dari login: petugas = ketik manual, pemroses ACC = pilih dari kelas.wali_kelas.
+ *
+ * 1 izin (perizinan) = header; siswa di tabel perizinan_siswa (1..banyak, dalam SATU kelas).
+ * ACC / tolak / batal berlaku untuk seluruh izin.
  */
 class PerizinanController extends Controller
 {
     public function index(): View
     {
         return view('perizinan.index', [
-            'hariIni' => Perizinan::berlakuHariIni()->orderBy('jam_mulai')->get(),
+            // jumlah siswa yang sedang izin hari ini
+            'hariIni' => PerizinanSiswa::whereHas('perizinan', fn ($q) => $q->berlakuHariIni())->count(),
             'menunggu' => Perizinan::where('status', Perizinan::MENUNGGU)->count(),
         ]);
     }
 
     public function form(Request $request): View
     {
-        $nisn = old('nisn');
+        $nisn = array_filter((array) old('nisn', []));
+        $kelasMap = Kelas::all()->keyBy(fn ($k) => KelasMatcher::key($k->nama_kelas));
+
+        $terpilih = $nisn
+            ? Siswa::whereIn('nisn', $nisn)->get()->map(fn ($s) => $this->bentukSiswa($s, $kelasMap))->values()
+            : collect();
 
         return view('perizinan.form', [
             'durasi' => Perizinan::DURASI,
             'statusPetugas' => Perizinan::STATUS_PETUGAS,
             'defaultStatusPetugas' => $request->user()->role === 'wali_kelas' ? 'wali_kelas' : 'guru',
-            'pilih' => $nisn ? Siswa::where('nisn', $nisn)->first() : null,
+            'kelasList' => Siswa::query()->distinct()->orderBy('kelas_umum')->pluck('kelas_umum'),
+            'terpilih' => $terpilih,
         ]);
+    }
+
+    private function bentukSiswa(Siswa $s, $kelasMap): array
+    {
+        return [
+            'nisn' => $s->nisn,
+            'nama' => $s->nama_siswa,
+            'kelas' => $s->kelas_umum,
+            'wali' => $kelasMap[KelasMatcher::key($s->kelas_umum)]->wali_kelas ?? null,
+        ];
     }
 
     /** Autocomplete siswa: nama / awalan nisn. */
@@ -49,24 +70,35 @@ class PerizinanController extends Controller
             return response()->json([]);
         }
         $like = addcslashes($q, '%_\\');
-        $kelas = Kelas::all()->keyBy(fn ($k) => KelasMatcher::key($k->nama_kelas));
+        $kelasMap = Kelas::all()->keyBy(fn ($k) => KelasMatcher::key($k->nama_kelas));
 
         $rows = Siswa::where('nama_siswa', 'like', "%{$like}%")->orWhere('nisn', 'like', "{$like}%")
             ->orderBy('nama_siswa')->limit(10)->get()
-            ->map(fn ($s) => [
-                'nisn' => $s->nisn,
-                'nama' => $s->nama_siswa,
-                'kelas' => $s->kelas_umum,
-                'wali' => $kelas[KelasMatcher::key($s->kelas_umum)]->wali_kelas ?? null,
-            ]);
+            ->map(fn ($s) => $this->bentukSiswa($s, $kelasMap));
 
         return response()->json($rows);
+    }
+
+    /** Semua siswa satu kelas (tab "Per kelas"). */
+    public function siswaKelas(Request $request): JsonResponse
+    {
+        $kelas = trim((string) $request->query('kelas'));
+        if ($kelas === '') {
+            return response()->json([]);
+        }
+        $kelasMap = Kelas::all()->keyBy(fn ($k) => KelasMatcher::key($k->nama_kelas));
+
+        return response()->json(
+            Siswa::where('kelas_umum', $kelas)->orderBy('nama_siswa')->get()
+                ->map(fn ($s) => $this->bentukSiswa($s, $kelasMap))->values()
+        );
     }
 
     public function store(Request $request): RedirectResponse
     {
         $d = $request->validate([
-            'nisn' => ['required', 'string', 'max:20'],
+            'nisn' => ['required', 'array', 'min:1', 'max:300'],
+            'nisn.*' => ['required', 'string', 'max:20', 'distinct'],
             'tanggal_mulai' => ['required', 'date_format:Y-m-d'],
             'jam_mulai' => ['required', 'date_format:H:i'],
             'tanggal_selesai' => ['required', 'date_format:Y-m-d', 'after_or_equal:tanggal_mulai'],
@@ -76,11 +108,15 @@ class PerizinanController extends Controller
             'petugas' => ['required', 'string', 'max:100'],
             'status_petugas' => ['required', Rule::in(Perizinan::STATUS_PETUGAS)],
             'need_acc' => ['nullable', 'boolean'],
+        ], [
+            'nisn.required' => 'Pilih minimal 1 siswa.',
+            'nisn.min' => 'Pilih minimal 1 siswa.',
+            'nisn.*.distinct' => 'Ada siswa yang terpilih dua kali.',
         ]);
 
-        $siswa = Siswa::where('nisn', $d['nisn'])->first();
-        if (! $siswa) {
-            return back()->withInput()->withErrors(['nisn' => 'Siswa tidak ditemukan. Pilih dari hasil pencarian.']);
+        $siswa = Siswa::whereIn('nisn', $d['nisn'])->get();
+        if ($siswa->count() !== count($d['nisn'])) {
+            return back()->withInput()->withErrors(['nisn' => 'Ada siswa yang tidak ditemukan. Pilih ulang dari pencarian / daftar kelas.']);
         }
 
         $mulai = "{$d['tanggal_mulai']} {$d['jam_mulai']}:00";
@@ -88,31 +124,55 @@ class PerizinanController extends Controller
         if ($selesai <= $mulai) {
             return back()->withInput()->withErrors(['jam_selesai' => 'Waktu selesai harus setelah waktu mulai.']);
         }
-        if (Perizinan::adaTumpangTindih($siswa->nisn, $mulai, $selesai)) {
-            return back()->withInput()->withErrors(['nisn' => "{$siswa->nama_siswa} sudah punya izin (menunggu / aktif / disetujui) yang bentrok dengan rentang waktu ini."]);
+
+        $kelasSet = $siswa->pluck('kelas_umum')->unique();
+        if ($kelasSet->count() > 1) {
+            return back()->withInput()->withErrors(['nisn' => 'Satu izin hanya untuk satu kelas ('.$kelasSet->implode(', ').'). Buat izin terpisah per kelas.']);
+        }
+        $kelas = $kelasSet->first();
+
+        $bentrok = Perizinan::bentrok($d['nisn'], $mulai, $selesai);
+        if ($bentrok->isNotEmpty()) {
+            $nama = $bentrok->values()->take(5)->implode(', ').($bentrok->count() > 5 ? ' dan '.($bentrok->count() - 5).' lainnya' : '');
+
+            return back()->withInput()->withErrors(['nisn' => "Sudah punya izin (menunggu / aktif / disetujui) yang bentrok dengan rentang waktu ini: {$nama}. Hapus dari daftar atau batalkan izin lamanya."]);
         }
 
         $need = $request->boolean('need_acc');
-        $p = Perizinan::create([
-            'nisn' => $siswa->nisn,
-            'nama_siswa' => $siswa->nama_siswa,
-            'kelas_umum' => $siswa->kelas_umum,
-            'wali_kelas_tujuan' => KelasMatcher::cari($siswa->kelas_umum)?->wali_kelas,
-            'tanggal_mulai' => $d['tanggal_mulai'],
-            'jam_mulai' => $d['jam_mulai'],
-            'tanggal_selesai' => $d['tanggal_selesai'],
-            'jam_selesai' => $d['jam_selesai'],
-            'durasi' => Perizinan::DURASI[$d['durasi']],
-            'alasan' => $d['alasan'],
-            'petugas' => $d['petugas'],
-            'status_petugas' => $d['status_petugas'],
-            'need_acc' => $need,
-            'status' => $need ? Perizinan::MENUNGGU : Perizinan::AKTIF,
-        ]);
+        $wali = KelasMatcher::cari($kelas)?->wali_kelas;
 
+        if ($need && ! $wali) {
+            return back()->withInput()->withErrors(['nisn' => "Wali kelas {$kelas} belum terdaftar di data Kelas, jadi ACC belum bisa dikirim. Isi dulu di menu Kelas & Wali Kelas (admin), atau simpan tanpa ACC."]);
+        }
+
+        $p = DB::transaction(function () use ($d, $siswa, $need, $wali) {
+            $p = Perizinan::create([
+                'wali_kelas_tujuan' => $wali,
+                'tanggal_mulai' => $d['tanggal_mulai'],
+                'jam_mulai' => $d['jam_mulai'],
+                'tanggal_selesai' => $d['tanggal_selesai'],
+                'jam_selesai' => $d['jam_selesai'],
+                'durasi' => Perizinan::DURASI[$d['durasi']],
+                'alasan' => $d['alasan'],
+                'petugas' => $d['petugas'],
+                'status_petugas' => $d['status_petugas'],
+                'need_acc' => $need,
+                'status' => $need ? Perizinan::MENUNGGU : Perizinan::AKTIF,
+            ]);
+            $p->siswa()->createMany($siswa->map(fn ($s) => [
+                'nisn' => $s->nisn,
+                'nama_siswa' => $s->nama_siswa,
+                'kelas_umum' => $s->kelas_umum,
+            ])->all());
+
+            return $p;
+        });
+        Cache::forget('layar.izin');
+
+        $untuk = $p->ringkas();
         $msg = $need
-            ? "Izin {$p->id_perizinan} untuk {$p->nama_siswa} tersimpan, tapi BELUM aktif. Kirim tautan ACC ke wali kelas lewat tombol WhatsApp di bawah."
-            : "Izin {$p->id_perizinan} untuk {$p->nama_siswa} langsung aktif (tanpa ACC wali kelas).";
+            ? "Izin {$p->id_perizinan} untuk {$untuk} tersimpan, tapi BELUM aktif. Kirim tautan ACC ke wali kelas lewat tombol WhatsApp di bawah."
+            : "Izin {$p->id_perizinan} untuk {$untuk} langsung aktif (tanpa ACC wali kelas).";
 
         return redirect()->route('perizinan.show', $p)->with('status', $msg);
     }
@@ -129,7 +189,7 @@ class PerizinanController extends Controller
 
     private function daftar(Request $request, string $mode): View
     {
-        $q = Perizinan::query();
+        $q = Perizinan::query()->with('siswa');
         $cari = trim((string) $request->query('q'));
         $status = (string) $request->query('status');
 
@@ -143,7 +203,8 @@ class PerizinanController extends Controller
         }
         if ($cari !== '') {
             $like = '%'.addcslashes($cari, '%_\\').'%';
-            $q->where(fn ($w) => $w->where('nama_siswa', 'like', $like)->orWhere('nisn', 'like', $like)->orWhere('id_perizinan', 'like', $like));
+            $q->where(fn ($w) => $w->where('id_perizinan', 'like', $like)
+                ->orWhereHas('siswa', fn ($s) => $s->where('nama_siswa', 'like', $like)->orWhere('nisn', 'like', $like)));
         }
 
         return view('perizinan.list', [
@@ -156,12 +217,14 @@ class PerizinanController extends Controller
 
     public function show(Perizinan $perizinan): View
     {
+        $perizinan->load('siswa');
         $extra = [];
         if ($perizinan->status === Perizinan::MENUNGGU) {
             $hp = $this->hpWali($perizinan);
             $acc = route('perizinan.acc_link', $perizinan->uuid);
+            $n = $perizinan->siswa->count();
             $pesan = "Assalamualaikum {$perizinan->wali_kelas_tujuan}. Mohon ACC izin siswa:\n"
-                ."{$perizinan->nama_siswa} ({$perizinan->kelas_umum})\n"
+                .($n > 1 ? "{$n} siswa ({$perizinan->daftarKelas()}), a.n. {$perizinan->ringkas()}\n" : "{$perizinan->ringkas()} ({$perizinan->daftarKelas()})\n")
                 ."{$perizinan->durasi}: ".$perizinan->tanggal_mulai->translatedFormat('j M Y').' '.substr($perizinan->jam_mulai, 0, 5)
                 .' s.d. '.$perizinan->tanggal_selesai->translatedFormat('j M Y').' '.substr($perizinan->jam_selesai, 0, 5)."\n"
                 ."Alasan: {$perizinan->alasan}\n\n"
@@ -178,22 +241,28 @@ class PerizinanController extends Controller
 
     public function setujui(Request $request, Perizinan $perizinan): RedirectResponse
     {
-        $d = $request->validate([
-            'diproses_oleh' => ['required', 'string', Rule::in($this->namaWali()->all())],
-            'catatan_wali_kelas' => ['nullable', 'string', 'max:200'],
-        ], ['diproses_oleh.in' => 'Pilih nama wali kelas dari daftar.']);
-
-        return $this->proses($perizinan, Perizinan::DISETUJUI, $d, 'disetujui');
+        return $this->proses($perizinan, Perizinan::DISETUJUI, $this->dataProses($request, $perizinan, false), 'disetujui');
     }
 
     public function tolak(Request $request, Perizinan $perizinan): RedirectResponse
     {
+        return $this->proses($perizinan, Perizinan::DITOLAK, $this->dataProses($request, $perizinan, true), 'ditolak');
+    }
+
+    /**
+     * Pemroses TERKUNCI ke wali kelas dari kelas siswa (wali_kelas_tujuan); input form diabaikan.
+     * Hanya izin lama tanpa wali_kelas_tujuan yang masih memakai pilihan manual.
+     */
+    private function dataProses(Request $request, Perizinan $p, bool $wajibCatatan): array
+    {
         $d = $request->validate([
-            'diproses_oleh' => ['required', 'string', Rule::in($this->namaWali()->all())],
-            'catatan_wali_kelas' => ['required', 'string', 'max:200'],
+            'diproses_oleh' => [$p->wali_kelas_tujuan ? 'nullable' : 'required', 'string', Rule::in($this->namaWali()->all())],
+            'catatan_wali_kelas' => [$wajibCatatan ? 'required' : 'nullable', 'string', 'max:200'],
         ], ['diproses_oleh.in' => 'Pilih nama wali kelas dari daftar.', 'catatan_wali_kelas.required' => 'Alasan penolakan wajib diisi.']);
 
-        return $this->proses($perizinan, Perizinan::DITOLAK, $d, 'ditolak');
+        $d['diproses_oleh'] = $p->wali_kelas_tujuan ?: $d['diproses_oleh'];
+
+        return $d;
     }
 
     /** Ubah status menunggu_acc -> disetujui/ditolak dengan lock. false = sudah diproses duluan. */
@@ -223,7 +292,7 @@ class PerizinanController extends Controller
         }
 
         return redirect()->route('perizinan.acc')
-            ->with('status', "Izin {$perizinan->id_perizinan} ({$perizinan->nama_siswa}) berhasil {$kata} oleh {$d['diproses_oleh']}.");
+            ->with('status', "Izin {$perizinan->id_perizinan} ({$perizinan->ringkas()}) berhasil {$kata} oleh {$d['diproses_oleh']}.");
     }
 
     public function batal(Request $request, Perizinan $perizinan): RedirectResponse
@@ -255,13 +324,13 @@ class PerizinanController extends Controller
         }
 
         return redirect()->route('perizinan.show', $perizinan)
-            ->with('status', "Izin {$perizinan->id_perizinan} ({$perizinan->nama_siswa}) dibatalkan oleh {$d['dibatalkan_oleh']}.");
+            ->with('status', "Izin {$perizinan->id_perizinan} ({$perizinan->ringkas()}) dibatalkan oleh {$d['dibatalkan_oleh']}.");
     }
 
     /** Surat digital: publik via uuid, tidak diindeks mesin pencari. */
     public function surat(string $uuid): Response
     {
-        $p = Perizinan::where('uuid', $uuid)->firstOrFail();
+        $p = Perizinan::with('siswa')->where('uuid', $uuid)->firstOrFail();
 
         return response()->view('perizinan.surat', ['item' => $p, 'noAuth' => true])
             ->header('X-Robots-Tag', 'noindex, nofollow');
@@ -273,7 +342,7 @@ class PerizinanController extends Controller
      */
     public function accLink(string $uuid): Response
     {
-        $p = Perizinan::where('uuid', $uuid)->firstOrFail();
+        $p = Perizinan::with('siswa')->where('uuid', $uuid)->firstOrFail();
 
         return response()->view('perizinan.acc_link', [
             'item' => $p,
@@ -294,7 +363,7 @@ class PerizinanController extends Controller
 
     private function accLinkProses(Request $request, string $uuid, string $status, string $kata): RedirectResponse
     {
-        $p = Perizinan::where('uuid', $uuid)->firstOrFail();
+        $p = Perizinan::with('siswa')->where('uuid', $uuid)->firstOrFail();
         $d = $request->validate([
             'pin' => ['required', 'digits:4'],
             'catatan_wali_kelas' => [$status === Perizinan::DITOLAK ? 'required' : 'nullable', 'string', 'max:200'],
@@ -317,7 +386,7 @@ class PerizinanController extends Controller
 
         return redirect()->route('perizinan.acc_link', $uuid)->with(
             $ok ? 'status' : 'warning',
-            $ok ? "Izin {$p->nama_siswa} berhasil {$kata}. Terima kasih." : 'Izin ini sudah diproses atau dibatalkan lebih dulu.'
+            $ok ? "Izin {$p->ringkas()} berhasil {$kata}. Terima kasih." : 'Izin ini sudah diproses atau dibatalkan lebih dulu.'
         );
     }
 
@@ -341,45 +410,48 @@ class PerizinanController extends Controller
             ->header('Cache-Control', 'no-store');
     }
 
+    /** Satu baris per siswa (bentuk JSON sama seperti sebelumnya, layar.blade tidak perlu diubah). */
     public function layarData(string $token): JsonResponse
-{
-    $this->cekToken($token);
+    {
+        $this->cekToken($token);
 
-    $data = Cache::remember('layar.izin', 20, function () {
-        $now = now();
-        $rank = ['berlangsung' => 0, 'akan' => 1, 'selesai' => 2];
-        $rows = Perizinan::berlakuHariIni()->orderBy('tanggal_mulai')->orderBy('jam_mulai')->get()
-            ->map(function (Perizinan $p) use ($now) {
-                $mulai = $p->tanggal_mulai->copy()->setTimeFromTimeString($p->jam_mulai);
-                $selesai = $p->tanggal_selesai->copy()->setTimeFromTimeString($p->jam_selesai);
-                $multi = ! $p->tanggal_mulai->isSameDay($p->tanggal_selesai);
-
-                return [
-                    'id' => $p->id_perizinan,
-                    'nama' => $p->nama_siswa,
-                    'kelas' => $p->kelas_umum,
-                    'durasi' => $p->durasi,
-                    'alasan' => $p->alasan,
-                    'waktu' => $multi
+        $data = Cache::remember('layar.izin', 20, function () {
+            $now = now();
+            $rank = ['berlangsung' => 0, 'akan' => 1, 'selesai' => 2];
+            $rows = Perizinan::berlakuHariIni()->with('siswa')->orderBy('tanggal_mulai')->orderBy('jam_mulai')->get()
+                ->flatMap(function (Perizinan $p) use ($now) {
+                    $mulai = $p->tanggal_mulai->copy()->setTimeFromTimeString($p->jam_mulai);
+                    $selesai = $p->tanggal_selesai->copy()->setTimeFromTimeString($p->jam_selesai);
+                    $multi = ! $p->tanggal_mulai->isSameDay($p->tanggal_selesai);
+                    $waktu = $multi
                         ? $mulai->translatedFormat('j M H:i').' → '.$selesai->translatedFormat('j M H:i')
-                        : $mulai->format('H:i').' – '.$selesai->format('H:i'),
-                    'status' => $now->lt($mulai) ? 'akan' : ($now->gt($selesai) ? 'selesai' : 'berlangsung'),
-                    'ts' => $mulai->timestamp,
-                ];
-            })
-            ->sortBy(fn ($r) => [$rank[$r['status']], $r['ts']])
-            ->values()
-            ->all();
+                        : $mulai->format('H:i').' – '.$selesai->format('H:i');
+                    $status = $now->lt($mulai) ? 'akan' : ($now->gt($selesai) ? 'selesai' : 'berlangsung');
 
-        return [
-            'tanggal' => $now->translatedFormat('l, j F Y'),
-            'diperbarui' => $now->format('H:i:s'),
-            'items' => $rows,
-        ];
-    });
+                    return $p->siswaUrut()->map(fn ($s) => [
+                        'id' => $p->id_perizinan.'-'.$s->nisn,
+                        'nama' => $s->nama_siswa,
+                        'kelas' => $s->kelas_umum,
+                        'durasi' => $p->durasi,
+                        'alasan' => $p->alasan,
+                        'waktu' => $waktu,
+                        'status' => $status,
+                        'ts' => $mulai->timestamp,
+                    ]);
+                })
+                ->sortBy(fn ($r) => [$rank[$r['status']], $r['ts']])
+                ->values()
+                ->all();
 
-    return response()->json($data)->header('Cache-Control', 'no-store');
-}
+            return [
+                'tanggal' => $now->translatedFormat('l, j F Y'),
+                'diperbarui' => $now->format('H:i:s'),
+                'items' => $rows,
+            ];
+        });
+
+        return response()->json($data)->header('Cache-Control', 'no-store');
+    }
 
     private function cekToken(string $token): void
     {
@@ -387,7 +459,7 @@ class PerizinanController extends Controller
         abort_if($t === '' || ! hash_equals($t, $token), 404);
     }
 
-    /** Nama wali kelas unik dari tabel kelas (pilihan "nama pemroses"). */
+    /** Nama wali kelas unik dari tabel kelas (pilihan "nama pemroses" / "wali tujuan"). */
     private function namaWali()
     {
         return Kelas::whereNotNull('wali_kelas')->where('wali_kelas', '!=', '')

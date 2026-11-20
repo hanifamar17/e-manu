@@ -6,7 +6,10 @@
 @endsection
 
 @section('content')
-@php $aktif = in_array($item->status, ['aktif', 'disetujui'], true); @endphp
+@php
+    $aktif = in_array($item->status, ['aktif', 'disetujui'], true);
+    $daftar = $item->siswaUrut();
+@endphp
 <div class="max-w-xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
   <div class="border border-[var(--ink)] p-6">
     <p class="eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] m-0">MA Nurul Ummah Kotagede</p>
@@ -15,9 +18,6 @@
 
     <table class="w-full text-sm">
       @foreach ([
-        'Nama' => $item->nama_siswa,
-        'NISN' => $item->nisn,
-        'Kelas' => $item->kelas_umum,
         'Mulai' => $item->tanggal_mulai->translatedFormat('l, j F Y').' pukul '.substr($item->jam_mulai, 0, 5),
         'Selesai' => $item->tanggal_selesai->translatedFormat('l, j F Y').' pukul '.substr($item->jam_selesai, 0, 5),
         'Durasi' => $item->durasi,
@@ -30,6 +30,28 @@
           <td class="py-2 font-semibold">{{ $v ?: '—' }}</td>
         </tr>
       @endforeach
+    </table>
+
+    <p class="eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] mt-6 mb-2">Daftar siswa ({{ $daftar->count() }})</p>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-[var(--ink)] text-left mono text-[11px] uppercase tracking-widest text-[var(--ink-soft)]">
+          <th class="py-1.5 pr-2 w-8">No</th>
+          <th class="py-1.5 pr-2">Nama</th>
+          <th class="py-1.5 pr-2">NISN</th>
+          <th class="py-1.5">Kelas</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach ($daftar as $i => $s)
+          <tr class="align-top border-b border-[var(--line)]">
+            <td class="py-1.5 pr-2 mono text-[11px] text-[var(--ink-soft)]">{{ $i + 1 }}</td>
+            <td class="py-1.5 pr-2 font-semibold">{{ $s->nama_siswa }}</td>
+            <td class="py-1.5 pr-2 mono text-[11px]">{{ $s->nisn }}</td>
+            <td class="py-1.5">{{ $s->kelas_umum }}</td>
+          </tr>
+        @endforeach
+      </tbody>
     </table>
 
     <div class="mt-6 flex items-center justify-between gap-3">

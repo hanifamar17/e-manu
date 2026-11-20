@@ -3,60 +3,93 @@
 
 @section('content')
 @php
-    $inp = 'block w-full py-2.5 px-0 text-base sm:text-sm bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0 focus:border-[var(--accent)] rounded-none text-[var(--ink)]';
     $statuses = ['menunggu_acc' => 'Menunggu ACC', 'aktif' => 'Aktif', 'disetujui' => 'Disetujui', 'ditolak' => 'Ditolak', 'dibatalkan' => 'Dibatalkan'];
+    $fld = 'py-2.5 px-0 text-sm bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0 focus:border-[var(--accent)] rounded-none text-[var(--ink)]';
 @endphp
 <div class="max-w-5xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
   <a data-lock href="{{ route('perizinan.index') }}" class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] cursor-pointer touch-manipulation select-none transition active:scale-95">
-    <i class="ph ph-arrow-left"></i> Perizinan
+    <i class="ph ph-arrow-left"></i> Kembali
   </a>
-  <h1 class="page-title text-2xl font-bold mt-8 mb-6">{{ $mode === 'acc' ? 'ACC Izin' : 'Riwayat Perizinan' }}</h1>
+
+  <div class="flex flex-wrap items-end justify-between gap-3 mt-8 mb-6">
+    <div>
+      <h1 class="page-title text-2xl font-bold m-0">{{ $mode === 'acc' ? 'ACC Izin' : 'Riwayat Perizinan' }}</h1>
+      <p class="text-sm text-[var(--ink-soft)] mt-1 mb-0">
+        {{ $mode === 'acc' ? 'Izin yang menunggu persetujuan wali kelas.' : 'Catatan izin siswa.' }}
+        Total: <span class="font-semibold text-[var(--ink)]">{{ $items->total() }}</span>.
+      </p>
+    </div>
+  </div>
 
   @include('partials.flash')
 
-  <form data-lock method="GET" class="flex flex-wrap items-end gap-4 mb-6">
-    <div class="flex-1 min-w-[180px]">
-      <input class="{{ $inp }}" name="q" value="{{ $cari }}" placeholder="Cari nama / NISN / ID izin" enterkeyhint="search">
-    </div>
+  <form data-lock method="GET" class="flex items-end gap-3 mb-6">
+    <input name="q" value="{{ $cari }}" placeholder="Cari nama, NISN, atau ID izin..." enterkeyhint="search" class="flex-1 min-w-0 {{ $fld }}">
     @if ($mode === 'riwayat')
-      <select class="{{ $inp }} !w-auto cursor-pointer" name="status">
+      <select name="status" class="{{ $fld }} cursor-pointer">
         <option value="">Semua status</option>
         @foreach ($statuses as $k => $l)
           <option value="{{ $k }}" @selected($status === $k)>{{ $l }}</option>
         @endforeach
       </select>
     @endif
-    <button type="submit" class="px-4 py-2.5 text-sm font-semibold bg-white border border-[var(--line)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)] active:scale-[0.97]">Cari</button>
+    <button type="submit" class="px-3 py-1.5 text-xs font-semibold border border-[var(--line)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)] active:scale-[0.97]">Cari</button>
   </form>
 
-  <div class="space-y-2">
-    @forelse ($items as $p)
-      <a data-lock href="{{ route('perizinan.show', $p) }}" class="card-outline p-4 border border-[var(--line)] flex flex-wrap items-center justify-between gap-3 no-underline text-inherit transition hover:border-[var(--ink)] cursor-pointer">
-        <div class="min-w-0">
-          <p class="font-bold text-[15px] m-0">{{ $p->nama_siswa }} <span class="mono text-[11px] text-[var(--ink-soft)] font-normal">&middot; {{ $p->kelas_umum }}</span></p>
-          <p class="text-sm m-0 mt-0.5">{{ $p->alasan }}</p>
-          <p class="mono text-[11px] text-[var(--ink-soft)] m-0 mt-1">
-            {{ $p->id_perizinan }} &middot; {{ $p->durasi }} &middot;
-            {{ $p->tanggal_mulai->translatedFormat('j M Y') }} {{ substr($p->jam_mulai, 0, 5) }}
-            &rarr; {{ $p->tanggal_selesai->translatedFormat('j M Y') }} {{ substr($p->jam_selesai, 0, 5) }}
-          </p>
-        </div>
-        @include('partials.pz-badge', ['s' => $p->status])
-      </a>
-    @empty
-      <div class="card-outline py-8 text-center mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-faint)]">— {{ $mode === 'acc' ? 'TIDAK ADA IZIN MENUNGGU' : 'KOSONG' }} —</div>
-    @endforelse
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm whitespace-nowrap">
+      <thead>
+        <tr>
+          <th class="text-left py-2 eyebrow pr-6">Siswa &amp; Alasan</th>
+          <th class="text-left py-2 eyebrow pr-6 hidden sm:table-cell">Waktu</th>
+          <th class="text-left py-2 eyebrow pr-6">Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach ($items as $p)
+        <tr style="border-top:1px solid var(--line)">
+          <td class="py-3 pr-6 whitespace-normal min-w-[220px]">
+            <div class="font-semibold">{{ $p->ringkas() }}</div>
+            <div class="mono text-[11px] text-[var(--ink-soft)]">{{ $p->id_perizinan }} &middot; {{ $p->daftarKelas() }} &middot; {{ $p->durasi }}</div>
+            <div class="text-[12px] text-[var(--ink-soft)]">{{ $p->alasan }}</div>
+            <div class="mono text-[11px] text-[var(--ink-soft)] sm:hidden">
+              {{ $p->tanggal_mulai->translatedFormat('j M Y') }} {{ substr($p->jam_mulai, 0, 5) }} &rarr; {{ $p->tanggal_selesai->translatedFormat('j M Y') }} {{ substr($p->jam_selesai, 0, 5) }}
+            </div>
+          </td>
+          <td class="py-3 pr-6 hidden sm:table-cell mono text-[12px]">
+            {{ $p->tanggal_mulai->translatedFormat('j M Y') }} {{ substr($p->jam_mulai, 0, 5) }}<br>
+            <span class="text-[var(--ink-soft)]">&rarr; {{ $p->tanggal_selesai->translatedFormat('j M Y') }} {{ substr($p->jam_selesai, 0, 5) }}</span>
+          </td>
+          <td class="py-3 pr-6">@include('partials.pz-badge', ['s' => $p->status])</td>
+          <td class="py-3 text-right">
+            <a data-lock class="underline text-xs cursor-pointer" href="{{ route('perizinan.show', $p) }}">Detail</a>
+          </td>
+        </tr>
+        @endforeach
+      </tbody>
+    </table>
   </div>
 
-  @if ($items->hasPages())
-    <div class="flex items-center justify-between mt-6 mono text-[11px] font-bold uppercase tracking-widest">
-      <span class="text-[var(--ink-soft)]">Hal {{ $items->currentPage() }}/{{ $items->lastPage() }}</span>
-      <div class="flex gap-2">
-        @if ($items->previousPageUrl())<a data-lock href="{{ $items->previousPageUrl() }}" class="px-3 py-2 border border-[var(--line)] no-underline text-inherit hover:bg-[var(--ink)] hover:text-[var(--paper)] transition cursor-pointer active:scale-95">&larr; Prev</a>@endif
-        @if ($items->nextPageUrl())<a data-lock href="{{ $items->nextPageUrl() }}" class="px-3 py-2 border border-[var(--line)] no-underline text-inherit hover:bg-[var(--ink)] hover:text-[var(--paper)] transition cursor-pointer active:scale-95">Next &rarr;</a>@endif
-      </div>
-    </div>
+  @if ($items->isEmpty())
+    <div class="py-10 text-center text-[var(--ink-faint)]">{{ $mode === 'acc' ? 'Tidak ada izin menunggu ACC.' : 'Tidak ada data ditemukan.' }}</div>
   @endif
+
+  <div class="mt-6 flex items-center justify-between text-xs text-[var(--ink-soft)]">
+    <div>Hal <span class="text-[var(--ink)]">{{ $items->currentPage() }}</span>/<span class="text-[var(--ink)]">{{ max(1, $items->lastPage()) }}</span></div>
+    <div class="flex gap-4">
+      @if ($items->onFirstPage())
+        <span class="uppercase opacity-30 select-none">&larr; Prev</span>
+      @else
+        <a data-lock href="{{ $items->previousPageUrl() }}" class="uppercase hover:text-[var(--ink)] cursor-pointer touch-manipulation select-none">&larr; Prev</a>
+      @endif
+      @if ($items->hasMorePages())
+        <a data-lock href="{{ $items->nextPageUrl() }}" class="uppercase hover:text-[var(--ink)] cursor-pointer touch-manipulation select-none">Next &rarr;</a>
+      @else
+        <span class="uppercase opacity-30 select-none">Next &rarr;</span>
+      @endif
+    </div>
+  </div>
 </div>
 @include('partials.lock')
 @endsection

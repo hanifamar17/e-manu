@@ -4,8 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class Perizinan extends Model
 {
@@ -30,7 +32,7 @@ class Perizinan extends Model
     public const STATUS_PETUGAS = ['guru', 'wali_kelas', 'pembimbing'];
 
     protected $fillable = [
-        'id_perizinan', 'uuid', 'nisn', 'nama_siswa', 'kelas_umum', 'wali_kelas_tujuan',
+        'id_perizinan', 'uuid', 'wali_kelas_tujuan',
         'tanggal_mulai', 'jam_mulai', 'tanggal_selesai', 'jam_selesai', 'durasi', 'alasan',
         'petugas', 'status_petugas', 'need_acc', 'status',
         'diproses_oleh', 'tanggal_acc', 'catatan_wali_kelas',
@@ -46,15 +48,15 @@ class Perizinan extends Model
     ];
 
     protected static function booted(): void
-{
-    static::creating(function (self $m) {
-        $m->uuid ??= (string) Str::uuid();
-        $m->id_perizinan ??= self::buatId($m->tanggal_mulai);
-    });
+    {
+        static::creating(function (self $m) {
+            $m->uuid ??= (string) Str::uuid();
+            $m->id_perizinan ??= self::buatId($m->tanggal_mulai);
+        });
 
-    static::saved(fn () => Cache::forget('layar.izin'));
-    static::deleted(fn () => Cache::forget('layar.izin'));
-}
+        static::saved(fn () => Cache::forget('layar.izin'));
+        static::deleted(fn () => Cache::forget('layar.izin'));
+    }
 
     /** PZ-YYYYMMDD-XXXX, unik. */
     public static function buatId($tanggal): string
@@ -71,7 +73,33 @@ class Perizinan extends Model
         return 'id_perizinan';
     }
 
-    /** Izin yang berlaku hari ini (rentang mulai..selesai, bukan hanya tanggal mulai). */
+    public function siswa(): HasMany
+    {
+        return $this->hasMany(PerizinanSiswa::class);
+    }
+
+    /** Siswa urut kelas lalu nama. */
+    public function siswaUrut(): Collection
+    {
+        return $this->siswa->sortBy([['kelas_umum', 'asc'], ['nama_siswa', 'asc']])->values();
+    }
+
+    /** "Ahmad" (1 siswa) atau "Ahmad +11 siswa". */
+    public function ringkas(): string
+    {
+        $n = $this->siswa->count();
+        $first = $this->siswaUrut()->first()?->nama_siswa ?? '—';
+
+        return $n > 1 ? $first.' +'.($n - 1).' siswa' : $first;
+    }
+
+    /** "XI IPA 1, XI IPA 2" */
+    public function daftarKelas(): string
+    {
+        return $this->siswa->pluck('kelas_umum')->unique()->sort()->implode(', ');
+    }
+
+    /** Izin yang berlaku hari ini (rentang mulai..selesai). */
     public function scopeBerlakuHariIni(Builder $q): Builder
     {
         $hari = now()->toDateString();
@@ -80,14 +108,18 @@ class Perizinan extends Model
             ->whereDate('tanggal_selesai', '>=', $hari);
     }
 
-    /** Cek tumpang tindih rentang waktu untuk siswa yang sama (status berjalan). */
-    public static function adaTumpangTindih(string $nisn, string $mulai, string $selesai): bool
+    /**
+     * Siswa (dari daftar nisn) yang sudah punya izin berjalan bentrok dengan rentang waktu.
+     * Return: [nisn => nama_siswa], kosong = aman.
+     */
+    public static function bentrok(array $nisn, string $mulai, string $selesai): Collection
     {
-        return static::where('nisn', $nisn)
-            ->whereIn('status', [self::MENUNGGU, self::AKTIF, self::DISETUJUI])
-            ->whereRaw("TIMESTAMP(tanggal_mulai, jam_mulai) < ?", [$selesai])
-            ->whereRaw("TIMESTAMP(tanggal_selesai, jam_selesai) > ?", [$mulai])
-            ->exists();
+        return PerizinanSiswa::whereIn('nisn', $nisn)
+            ->whereHas('perizinan', fn (Builder $q) => $q
+                ->whereIn('status', [self::MENUNGGU, self::AKTIF, self::DISETUJUI])
+                ->whereRaw('TIMESTAMP(tanggal_mulai, jam_mulai) < ?', [$selesai])
+                ->whereRaw('TIMESTAMP(tanggal_selesai, jam_selesai) > ?', [$mulai]))
+            ->pluck('nama_siswa', 'nisn');
     }
 
     public function bisaDibatalkanOleh(?string $role): bool
