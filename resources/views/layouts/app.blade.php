@@ -116,7 +116,7 @@
                     GitHub
                 </a>
                 <span class="text-xs opacity-50 mono">&copy; <span id="current-year"></span></span>
-                <span class="text-xs opacity-70 mono">v2.0.0</span>
+                <span class="text-xs opacity-70 mono">v3.0.0</span>
             </div>
         </div>
     </footer>

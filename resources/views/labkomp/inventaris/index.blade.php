@@ -25,7 +25,6 @@
   <form onsubmit="return false" class="flex items-end gap-3 max-w-sm mb-2">
     <input id="filter" placeholder="Cari nama, kode, lokasi..."
       class="flex-1 py-2.5 px-0 text-base sm:text-sm bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0 focus:border-[var(--accent)] rounded-none text-[var(--ink)]">
-    <button type="button" onclick="document.getElementById('filter').dispatchEvent(new Event('input'))" class="inline-block px-4 py-2.5 text-sm font-semibold border border-[var(--line)] text-[var(--ink)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)] active:scale-[0.97] active:bg-[var(--ink)] active:text-[var(--paper)]">Cari</button>
   </form>
   <div id="searchCount" class="text-xs text-[var(--ink-faint)] mb-6 hidden"></div>
 

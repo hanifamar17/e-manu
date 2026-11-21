@@ -4,9 +4,7 @@
 @section('content')
 <div class="max-w-5xl mx-auto px-4 py-6 sm:py-10 text-[var(--ink)]">
 
-    @php $backUrl = route('booking_ruangan.booking_landing'); @endphp
-
-    <a href="{{ $backUrl }}"
+    <a href="{{ $kembali }}"
         class="back-link inline-flex items-center gap-2 text-sm font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors select-none touch-manipulation">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">

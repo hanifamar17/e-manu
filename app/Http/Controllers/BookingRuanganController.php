@@ -22,8 +22,14 @@ class BookingRuanganController extends Controller
         return view('booking_ruangan.booking_prosedur');
     }
 
-    public function jadwal(): View
+    public function jadwal(Request $request): View
     {
+        $kembali = match ($request->query('dari')) {
+           'repository' => route('repository'),
+           'admin'      => route('admin.booking.index'),
+           default      => route('booking_ruangan.booking_landing'),
+}       ;
+
         // Publik: hanya field non-sensitif (email TIDAK dikirim ke browser).
         $jadwal = BookingRuangan::disetujui()
             ->orderBy('tanggal')->orderBy('waktu_mulai')
@@ -44,8 +50,13 @@ class BookingRuanganController extends Controller
                 'keterangan' => $k->keterangan,
                 'kategori' => $k->kategori,
             ])->values();
+        
 
-        return view('booking_ruangan.jadwal_penggunaan', ['jadwal' => $jadwal, 'kalender' => $kalender]);
+        return view('booking_ruangan.jadwal_penggunaan', [
+            'jadwal' => $jadwal,
+            'kalender' => $kalender,
+            'kembali' => $kembali,
+        ]);
     }
 
     public function form(): View
@@ -60,24 +71,28 @@ class BookingRuanganController extends Controller
             return redirect()->route('booking_ruangan.booking_landing');
         }
 
-        $besok = Carbon::now('Asia/Jakarta')->addDay()->toDateString();
+        $hariIni = Carbon::now('Asia/Jakarta')->toDateString();
 
         $data = $request->validate([
             'nama_pemesan' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email:rfc', 'max:150'],
             'eksternal' => ['required', 'in:0,1'],
             'nama_kegiatan' => ['required', 'string', 'max:150'],
-            'tanggal' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$besok],
+            'tanggal' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$hariIni],
             'waktu_mulai' => ['required', 'date_format:H:i'],
             'waktu_selesai' => ['required', 'date_format:H:i', 'after:waktu_mulai'],
             'catatan_tambahan' => ['nullable', 'string', 'max:1000'],
         ], [
-            'tanggal.after_or_equal' => 'Pengajuan minimal H-1 (paling cepat besok).',
+            'tanggal.after_or_equal' => 'Tanggal tidak boleh sudah lewat.',
             'waktu_selesai.after' => 'Waktu selesai harus setelah waktu mulai.',
         ]);
 
         $mulai = $data['waktu_mulai'].':00';
         $selesai = $data['waktu_selesai'].':00';
+
+        if ($data['tanggal'] === $hariIni && $data['waktu_mulai'] <= Carbon::now('Asia/Jakarta')->format('H:i')) {
+            return back()->withInput()->withErrors(['waktu_mulai' => 'Waktu mulai sudah lewat.']);
+        }
 
         if (BookingRuangan::bentrok($data['tanggal'], $mulai, $selesai)->exists()) {
             return back()->withInput()->withErrors(['waktu_mulai' => 'Bentrok dengan jadwal yang sudah disetujui. Cek halaman Jadwal Penggunaan.']);

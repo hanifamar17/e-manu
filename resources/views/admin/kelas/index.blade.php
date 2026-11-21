@@ -11,24 +11,33 @@
 
   @include('partials.flash')
 
-  <div class="space-y-2">
-    @forelse ($items as $k)
-      <div class="card-outline p-4 border border-[var(--line)] flex flex-wrap items-center justify-between gap-3">
-        <div class="min-w-0">
-          <p class="font-bold text-[15px] m-0">{{ $k->nama_kelas }}</p>
-          <p class="text-sm m-0 mt-0.5">{{ $k->wali_kelas ?: '—' }}</p>
-          <p class="mono text-[11px] text-[var(--ink-soft)] m-0 mt-1">
-            HP: {{ $k->no_hp ?: '—' }} &middot; Akun: {{ $k->user?->username ?: 'belum dihubungkan' }}
-          </p>
-        </div>
-        <a data-lock href="{{ route('admin.kelas.edit', $k) }}"
-           class="px-4 py-2.5 text-sm font-semibold bg-white border border-[var(--line)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)] active:scale-[0.97] no-underline text-inherit">
-          Ubah
-        </a>
-      </div>
-    @empty
-      <div class="card-outline py-8 text-center mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-faint)]">— KOSONG: IMPOR KELAS DULU —</div>
-    @endforelse
+    <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-left py-2 eyebrow pr-4">Kelas</th>
+          <th class="text-left py-2 eyebrow pr-4">Wali Kelas</th>
+          <th class="text-left py-2 eyebrow pr-4">No. HP</th>
+          <th class="text-left py-2 eyebrow">Akun</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse ($items as $k)
+          <tr style="border-top:1px solid var(--line)">
+            <td class="py-3 pr-4 font-semibold whitespace-nowrap">{{ $k->nama_kelas }}</td>
+            <td class="py-3 pr-4">{{ $k->wali_kelas ?: '—' }}</td>
+            <td class="mono text-xs py-3 pr-4 whitespace-nowrap">{{ $k->no_hp ?: '—' }}</td>
+            <td class="mono text-xs py-3 pr-4 whitespace-nowrap">{{ $k->user?->username ?: 'belum dihubungkan' }}</td>
+            <td class="py-3 text-right whitespace-nowrap">
+              <a data-lock class="inline-block py-2 px-1 underline text-xs cursor-pointer touch-manipulation select-none transition hover:opacity-70 active:scale-95" href="{{ route('admin.kelas.edit', $k) }}">Ubah</a>
+            </td>
+          </tr>
+        @empty
+          <tr><td colspan="5" class="py-10 text-center text-[var(--ink-faint)]">Belum ada data. Impor kelas dulu.</td></tr>
+        @endforelse
+      </tbody>
+    </table>
   </div>
 </div>
 @include('partials.lock')

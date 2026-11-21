@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Log;
 
 class LoginController extends Controller
 {
@@ -19,38 +20,53 @@ class LoginController extends Controller
     }
 
     public function store(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'username' => ['required', 'string'],
-            'password' => ['required', 'string'],
-        ], [
-            'username.required' => 'Username wajib diisi.',
-            'password.required' => 'Password wajib diisi.',
-        ]);
+{
+    $data = $request->validate([
+        'username' => ['required', 'string', 'max:100'],
+        'password' => ['required', 'string', 'max:255'],
+    ], [
+        'username.required' => 'Username wajib diisi.',
+        'password.required' => 'Password wajib diisi.',
+    ]);
 
-        $username = trim($data['username']);
-        $key = Str::lower($username).'|'.$request->ip();
+    $username = trim($data['username']);
+    $u  = Str::lower($username);
+    $ip = $request->ip();
 
-        if (RateLimiter::tooManyAttempts($key, 5)) {
+    $kUI = "login:$u|$ip";    // username + IP
+    $kIp = "login-ip:$ip";    // IP saja
+    $kU  = "login-user:$u";   // username global
+
+    // 1. Cek terkunci dulu
+    foreach ([[$kUI, 5], [$kIp, 20], [$kU, 15]] as [$k, $max]) {
+        if (RateLimiter::tooManyAttempts($k, $max)) {
+            Log::warning('Login terkunci', ['user' => Str::limit(preg_replace('/\s+/', ' ', $u), 30), 'ip' => $ip, 'kunci' => $k]);
+
             throw ValidationException::withMessages([
-                'username' => 'Terlalu banyak percobaan. Coba lagi dalam '.RateLimiter::availableIn($key).' detik.',
+                'username' => 'Terlalu banyak percobaan. Coba lagi dalam '.RateLimiter::availableIn($k).' detik.',
             ]);
         }
-
-        if (! Auth::attempt(['username' => $username, 'password' => $data['password']])) {
-            RateLimiter::hit($key, 60);
-            throw ValidationException::withMessages(['username' => 'Username atau password salah.']);
-        }
-
-        RateLimiter::clear($key);
-        $request->session()->regenerate();
-
-        // admin -> dashboard, lainnya -> repositori
-        $tujuan = $request->user()->hasRole('admin') ? route('admin.home') : route('repository');
-
-        // intended() = URL tujuan disimpan server-side -> tidak ada open redirect
-        return redirect()->intended($tujuan);
     }
+
+    // 2. Gagal: catat di 3 lapis
+    if (! Auth::attempt(['username' => $username, 'password' => $data['password']])) {
+        RateLimiter::hit($kUI, 900);    // 15 menit
+        RateLimiter::hit($kIp, 900);
+        RateLimiter::hit($kU, 1800);    // 30 menit
+
+        throw ValidationException::withMessages(['username' => 'Username atau password salah.']);
+    }
+
+    // 3. Berhasil: reset lapis username+IP
+    RateLimiter::clear($kUI);
+    $request->session()->regenerate();
+
+    // admin -> dashboard, lainnya -> repositori
+    $tujuan = $request->user()->hasRole('admin') ? route('admin.home') : route('repository');
+
+    // intended() = URL tujuan disimpan server-side -> tidak ada open redirect
+    return redirect()->intended($tujuan);
+}
 
     public function destroy(Request $request): RedirectResponse
     {

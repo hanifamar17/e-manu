@@ -5,7 +5,7 @@
 @php
     $inp = 'block w-full py-2.5 px-0 text-sm bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0 focus:border-[var(--accent)] rounded-none text-[var(--ink)]';
     $lbl = 'eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] mb-1 block';
-    $besok = \Carbon\Carbon::now('Asia/Jakarta')->addDay()->toDateString();
+    $hariIni = \Carbon\Carbon::now('Asia/Jakarta')->toDateString();
 @endphp
 <div class="max-w-2xl mx-auto px-5 py-9 sm:py-14 text-[var(--ink)]">
 
@@ -50,8 +50,8 @@
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
       <div>
-        <label class="{{ $lbl }}" for="tanggal">Tanggal (min. H-1)</label>
-        <input class="{{ $inp }}" type="date" id="tanggal" name="tanggal" min="{{ $besok }}" value="{{ old('tanggal') }}" required>
+        <label class="{{ $lbl }}" for="tanggal">Tanggal</label>
+<input class="{{ $inp }}" type="date" id="tanggal" name="tanggal" min="{{ $hariIni }}" value="{{ old('tanggal') }}" required>
       </div>
       <div>
         <label class="{{ $lbl }}" for="waktu_mulai">Mulai</label>
@@ -67,8 +67,8 @@
       <textarea class="{{ $inp }}" id="catatan_tambahan" name="catatan_tambahan" rows="3" maxlength="1000">{{ old('catatan_tambahan') }}</textarea>
     </div>
 
-    <button type="submit"
-      class="w-full sm:w-auto px-6 py-2.5 text-sm font-semibold bg-[var(--ink)] text-[var(--paper)] hover:opacity-90 transition touch-manipulation">
+    <button type="submit" data-lock
+      class="w-full sm:w-auto px-6 py-2.5 text-sm font-semibold bg-[var(--ink)] text-[var(--paper)] cursor-pointer select-none touch-manipulation transition hover:opacity-90 active:scale-[0.98] active:opacity-80 [&[aria-busy=true]]:opacity-60 [&[aria-busy=true]]:cursor-wait">
       Kirim pengajuan
     </button>
   </form>

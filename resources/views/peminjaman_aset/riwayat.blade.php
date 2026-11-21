@@ -7,15 +7,18 @@
   <h1 class="text-2xl font-bold tracking-tight mt-8">Riwayat Peminjaman Aset</h1>
   <p class="text-sm text-[#6b6459] mt-2 mb-10">Daftar log aktivitas dan dokumen peminjaman aset.</p>
 
-  <form method="GET" class="w-full max-w-sm mb-8">
-    <input type="text" name="q" value="{{ $q }}" placeholder="Cari nama atau nomor surat..."
+  <form id="formCari" method="GET" autocomplete="off" class="w-full max-w-sm mb-2">
+    <input id="q" type="text" name="q" value="{{ $q }}" maxlength="100" enterkeyhint="search"
+           placeholder="Cari nama atau nomor surat..."
            class="block py-2.5 w-full text-sm bg-transparent border-0 border-b border-[#e6e0d6] focus:outline-none focus:border-[#a8501f]">
-    @if ($q !== '')<p class="text-xs text-zinc-500 mt-2">Ditemukan {{ $rows->total() }} data</p>@endif
   </form>
 
-  @if ($rows->isEmpty())
-    <div class="py-10 text-center text-[13px] font-semibold text-[#a49b8c]">Tidak ada data ditemukan</div>
-  @else
+  <div id="hasil" class="transition-opacity">
+    <p class="text-xs text-[var(--ink-faint)] m-0 mb-6 min-h-[1rem]">{{ $q !== '' ? 'Ditemukan '.$rows->total().' data' : '' }}</p>
+
+    @if ($rows->isEmpty())
+      <div class="py-10 text-center text-[var(--ink-faint)]">Tidak ada data ditemukan.</div>
+    @else
   <div class="overflow-x-auto border-t border-[#e6e0d6]">
     <table class="w-full text-left text-sm whitespace-nowrap">
       <thead>
@@ -67,7 +70,33 @@
       </tbody>
     </table>
   </div>
-  <div class="py-6">{{ $rows->links() }}</div>
-  @endif
+   @endif
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('formCari'), q = document.getElementById('q');
+  let timer, ctrl;
+
+  const muat = async () => {
+    ctrl?.abort(); ctrl = new AbortController();
+    const p = new URLSearchParams(new FormData(form));
+    for (const [k, v] of [...p]) if (!v) p.delete(k);
+    const url = new URL(location.pathname + (p.toString() ? '?' + p : ''), location.origin);
+    document.getElementById('hasil').classList.add('opacity-60');
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!r.ok) throw new Error(r.status);
+      const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+      document.getElementById('hasil').replaceWith(doc.getElementById('hasil'));
+      history.replaceState(null, '', url);
+    } catch (e) {
+      if (e.name !== 'AbortError') form.submit();
+    }
+  };
+
+  q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(muat, 300); });
+  form.addEventListener('submit', e => { e.preventDefault(); clearTimeout(timer); muat(); });
+});
+</script>
 @endsection

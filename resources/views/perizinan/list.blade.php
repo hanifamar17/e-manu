@@ -16,26 +16,29 @@
       <h1 class="page-title text-2xl font-bold m-0">{{ $mode === 'acc' ? 'ACC Izin' : 'Riwayat Perizinan' }}</h1>
       <p class="text-sm text-[var(--ink-soft)] mt-1 mb-0">
         {{ $mode === 'acc' ? 'Izin yang menunggu persetujuan wali kelas.' : 'Catatan izin siswa.' }}
-        Total: <span class="font-semibold text-[var(--ink)]">{{ $items->total() }}</span>.
+        Total: <span id="total" class="font-semibold text-[var(--ink)]">{{ $items->total() }}</span>.
       </p>
     </div>
   </div>
 
   @include('partials.flash')
 
-  <form data-lock method="GET" class="flex items-end gap-3 mb-6">
-    <input name="q" value="{{ $cari }}" placeholder="Cari nama, NISN, atau ID izin..." enterkeyhint="search" class="flex-1 min-w-0 {{ $fld }}">
-    @if ($mode === 'riwayat')
-      <select name="status" class="{{ $fld }} cursor-pointer">
-        <option value="">Semua status</option>
-        @foreach ($statuses as $k => $l)
-          <option value="{{ $k }}" @selected($status === $k)>{{ $l }}</option>
-        @endforeach
-      </select>
-    @endif
-    <button type="submit" class="px-3 py-1.5 text-xs font-semibold border border-[var(--line)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)] active:scale-[0.97]">Cari</button>
-  </form>
+  <form id="formCari" method="GET" autocomplete="off" class="flex max-w-sm gap-3 mb-2">
+  <input id="q" name="q" value="{{ $cari }}" placeholder="Cari nama, NISN, atau ID izin..." enterkeyhint="search" maxlength="100" class="flex-1 min-w-0 {{ $fld }}">
+  @if ($mode === 'riwayat')
+    <select id="status" name="status" class="{{ $fld }} cursor-pointer">
+      <option value="">Semua status</option>
+      @foreach ($statuses as $k => $l)
+        <option value="{{ $k }}" @selected($status === $k)>{{ $l }}</option>
+      @endforeach
+    </select>
+  @endif
+</form>
 
+<div id="hasil" class="transition-opacity">
+  <p class="text-xs text-[var(--ink-faint)] m-0 mb-6 min-h-[1rem]">{{ ($cari !== '' || $status !== '') ? 'Ditemukan '.$items->total().' data' : '' }}</p>
+  
+  @unless ($items->isEmpty())
   <div class="overflow-x-auto">
     <table class="w-full text-sm whitespace-nowrap">
       <thead>
@@ -70,10 +73,13 @@
       </tbody>
     </table>
   </div>
+  @endunless
 
   @if ($items->isEmpty())
     <div class="py-10 text-center text-[var(--ink-faint)]">{{ $mode === 'acc' ? 'Tidak ada izin menunggu ACC.' : 'Tidak ada data ditemukan.' }}</div>
   @endif
+
+</div>
 
   <div class="mt-6 flex items-center justify-between text-xs text-[var(--ink-soft)]">
     <div>Hal <span class="text-[var(--ink)]">{{ $items->currentPage() }}</span>/<span class="text-[var(--ink)]">{{ max(1, $items->lastPage()) }}</span></div>
@@ -91,5 +97,34 @@
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('formCari'), q = document.getElementById('q');
+  let timer, ctrl;
+
+  const muat = async () => {
+    ctrl?.abort(); ctrl = new AbortController();
+    const p = new URLSearchParams(new FormData(form));
+    for (const [k, v] of [...p]) if (!v) p.delete(k);
+    const url = new URL(location.pathname + (p.toString() ? '?' + p : ''), location.origin);
+    document.getElementById('hasil').classList.add('opacity-60');
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!r.ok) throw new Error(r.status);
+      const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+      document.getElementById('hasil').replaceWith(doc.getElementById('hasil'));
+      document.getElementById('total').textContent = doc.getElementById('total').textContent;
+      history.replaceState(null, '', url);
+    } catch (e) {
+      if (e.name !== 'AbortError') form.submit();   // gagal: reload biasa
+    }
+  };
+
+  q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(muat, 300); });
+  form.addEventListener('submit', e => { e.preventDefault(); clearTimeout(timer); muat(); });
+  document.getElementById('status')?.addEventListener('change', muat);
+});
+</script>
 @include('partials.lock')
 @endsection

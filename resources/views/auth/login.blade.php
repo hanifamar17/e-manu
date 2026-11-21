@@ -94,4 +94,29 @@
     });
 </script>
 
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const re = /Coba lagi dalam (\d+) detik/;
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = w.nextNode())) {
+    const m = node.nodeValue.match(re);
+    if (!m) continue;
+    const tpl = node.nodeValue;
+    const end = Date.now() + parseInt(m[1], 10) * 1000;
+    const tick = () => {
+      const s = Math.ceil((end - Date.now()) / 1000);
+      if (s <= 0) {
+        node.nodeValue = tpl.replace(re, 'Silakan coba login lagi');
+        clearInterval(t);
+        return;
+      }
+      node.nodeValue = tpl.replace(re, `Coba lagi dalam ${s} detik`);
+    };
+    const t = setInterval(tick, 250);
+    tick();
+    break;
+  }
+});
+</script>
 @endsection

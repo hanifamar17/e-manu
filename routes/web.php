@@ -49,7 +49,7 @@ Route::prefix('booking-ruangan')->name('booking_ruangan.')->group(function () {
 Route::get('/jadwal-pelajaran', [JadwalPelajaranController::class, 'index'])->name('jadwal_pelajaran.jadwal_pelajaran_landing');
 
 // Sarpras
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', RoleMiddleware::class.':admin'])->group(function () {
     Route::get('inventaris/{inventaris}/hapus', [InventarisController::class, 'konfirmasiHapus'])
         ->name('inventaris.hapus');
     Route::resource('inventaris', InventarisController::class)
@@ -66,14 +66,14 @@ Route::prefix('peminjaman-aset')->name('peminjaman.')->group(function () {
     // publik (peminjam)
     Route::get('/', [PA::class, 'landing'])->name('landing');
     Route::get('/form', [PA::class, 'form'])->name('form');
-    Route::get('/search-barang', [PA::class, 'searchBarang'])->name('search');
+    Route::get('/search-barang', [PA::class, 'searchBarang'])->middleware('throttle:60,1')->name('search');
     Route::post('/submit', [PA::class, 'submit'])->middleware('throttle:10,1')->name('submit');
-    Route::get('/ringkasan/{peminjaman}', [PA::class, 'ringkasan'])->name('ringkasan');
-    Route::post('/ringkasan/{peminjaman}/generate', [PA::class, 'generate'])->middleware('throttle:10,1')->name('generate');
-    Route::get('/ringkasan/{peminjaman}/preview', [PA::class, 'preview'])->name('preview');
+    Route::get('/ringkasan/{peminjaman}', [PA::class, 'ringkasan'])->whereUuid('peminjaman')->name('ringkasan');
+    Route::post('/ringkasan/{peminjaman}/generate', [PA::class, 'generate'])->whereUuid('peminjaman')->middleware('throttle:10,1')->name('generate');
+    Route::get('/ringkasan/{peminjaman}/preview', [PA::class, 'preview'])->whereUuid('peminjaman')->name('preview');
 
     // login-only (petugas)
-    Route::middleware('auth')->group(function () {
+    Route::middleware(['auth', RoleMiddleware::class.':admin'])->group(function () {
         Route::get('/riwayat', [PA::class, 'riwayat'])->name('riwayat');
         Route::get('/return', [PA::class, 'returnPage'])->name('return');
         Route::get('/api/loan', [PA::class, 'apiLoan'])->name('api.loan');
@@ -86,7 +86,7 @@ Route::prefix('labkomp/inventaris')->name('inventory_labkomp.')->group(function 
     Route::get('/', [LKI::class, 'landing'])->name('inventory_landing');
     Route::get('/api/search', [LKI::class, 'search'])->middleware('throttle:60,1')->name('api_search');
 
-    Route::middleware('auth')->group(function () {
+    Route::middleware(['auth', RoleMiddleware::class.':admin'])->group(function () {
         Route::get('/daftar', [LKI::class, 'index'])->name('inventory_list');
         Route::get('/tambah', [LKI::class, 'create'])->name('inventory_add');
         Route::post('/tambah', [LKI::class, 'store'])->name('inventory_store');
@@ -103,10 +103,10 @@ Route::prefix('labkomp/peminjaman')->name('peminjaman_invlabkomp.')->group(funct
     Route::get('/', [LKP::class, 'landing'])->name('peminjaman_landing');
     Route::get('/pinjam', [LKP::class, 'borrow'])->name('borrow');
     Route::post('/pinjam', [LKP::class, 'submit'])->middleware('throttle:10,1')->name('borrow_submit');
-    Route::get('/bukti/{uuid}', [LKP::class, 'receipt'])->name('receipt');
+    Route::get('/bukti/{uuid}', [LKP::class, 'receipt'])->whereUuid('uuid')->name('receipt');
 
     // login-only (petugas)
-    Route::middleware('auth')->group(function () {
+    Route::middleware(['auth', RoleMiddleware::class.':admin'])->group(function () {
         Route::get('/riwayat', [LKP::class, 'history'])->name('history');
         Route::get('/detail/{kode}', [LKP::class, 'detail'])->name('loan_detail');
         Route::get('/kembali', [LKP::class, 'returnPage'])->name('return_page');
@@ -125,7 +125,7 @@ Route::prefix('perizinan')->name('perizinan.')->group(function () {
     Route::post('/acc-link/{uuid}/tolak', [PZ::class, 'accLinkTolak'])->whereUuid('uuid')->middleware('throttle:10,1')->name('acc_link.tolak');
 
     // layar TV: tanpa login, dikunci token rahasia (config emanu.layar_token)
-    Route::get('/layar/{token}', [PZ::class, 'layar'])->where('token', '[A-Za-z0-9_-]+')->name('layar');
+    Route::get('/layar/{token}', [PZ::class, 'layar'])->where('token', '[A-Za-z0-9_-]+')->middleware('throttle:30,1')->name('layar');
     Route::get('/layar/{token}/data', [PZ::class, 'layarData'])->where('token', '[A-Za-z0-9_-]+')->middleware('throttle:30,1')->name('layar.data');
 
     Route::middleware(['auth', RoleMiddleware::class.':guru,wali_kelas,admin'])->group(function () {
@@ -174,6 +174,6 @@ Route::middleware(['auth', RoleMiddleware::class.':admin'])->prefix('admin')->na
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
-    Route::post('/login', [LoginController::class, 'store']);
+    Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:60,1')->name('login.store');
 });
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');

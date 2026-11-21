@@ -74,7 +74,7 @@
         &middot; Ditampilkan: <span class="font-semibold text-[var(--ink)]">{{ $items->total() }}</span>
       </p>
     </div>
-    <a data-lock href="{{ route('admin.kalender.index') }}" class="underline text-sm cursor-pointer touch-manipulation select-none transition hover:text-[var(--ink)] active:scale-95">Kalender akademik</a>
+    <a data-lock href="{{ route('booking_ruangan.jadwal_penggunaan', ['dari' => 'admin']) }}" class="underline text-sm cursor-pointer touch-manipulation select-none transition hover:text-[var(--ink)] active:scale-95">Kalender akademik</a>
   </div>
 
   @include('partials.flash')

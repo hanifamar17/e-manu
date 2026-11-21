@@ -22,7 +22,7 @@
         <div class="min-w-0">
           <p class="font-bold text-[15px] m-0">{{ $u->nama }}</p>
           <p class="mono text-[11px] text-[var(--ink-soft)] m-0 mt-1">
-            {{ $u->username }} &middot; {{ $roles[$u->role] ?? $u->role }}@if ($kelasBy->has($u->id)) &middot; wali {{ $kelasBy[$u->id] }}@endif
+            {{ $u->username }} &middot; {{ $roles[$u->role] ?? $u->role }}@if ($kelasBy->has($u->id)) @endif
           </p>
         </div>
         <div class="flex gap-2">

@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\DB;
 
 class AkunController extends Controller
 {
@@ -65,6 +66,10 @@ class AkunController extends Controller
             unset($data['password']); // kosong = password tetap
         }
         $akun->update($data);
+        if (isset($data['password'])) {
+            DB::table('sessions')->where('user_id', $akun->id)
+                ->where('id', '!=', session()->getId())->delete();
+        }
 
         return redirect()->route('admin.akun.index')
             ->with('status', "Akun {$akun->username} berhasil diperbarui".(isset($data['password']) ? ', password diganti.' : '.'));

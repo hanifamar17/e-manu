@@ -22,15 +22,18 @@
 
   @include('partials.flash')
 
-  @include('partials.sarpras_tabs', ['active' => $bidang ?: 'semua', 'q' => $q])
+  <div id="tabs">@include('partials.sarpras_tabs', ['active' => $bidang ?: 'semua', 'q' => $q])</div>
 
-  <form data-lock method="GET" action="{{ route('inventaris.index') }}" class="flex items-end gap-3 max-w-sm mb-8">
-    @if ($bidang)<input type="hidden" name="bidang" value="{{ $bidang }}">@endif
-    <input name="q" value="{{ $q }}" placeholder="Cari nama, merk, lokasi, kode..."
-      class="flex-1 py-2.5 px-0 text-base sm:text-sm bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0 focus:border-[var(--accent)] rounded-none text-[var(--ink)]">
-    <button class="inline-block px-4 py-2.5 text-sm font-semibold border border-[var(--line)] text-[var(--ink)] cursor-pointer touch-manipulation select-none transition hover:bg-[var(--ink)] hover:text-[var(--paper)] hover:border-[var(--ink)] active:scale-[0.97] active:bg-[var(--ink)] active:text-[var(--paper)]">Cari</button>
-  </form>
+  <form id="formCari" method="GET" action="{{ route('inventaris.index') }}" autocomplete="off" class="flex items-end gap-3 max-w-sm mb-2">
+  @if ($bidang)<input type="hidden" name="bidang" value="{{ $bidang }}">@endif
+  <input id="q" name="q" value="{{ $q }}" maxlength="100" enterkeyhint="search" placeholder="Cari nama, merk, lokasi, kode..."
+    class="flex-1 py-2.5 px-0 text-base sm:text-sm bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0 focus:border-[var(--accent)] rounded-none text-[var(--ink)]">
+</form>
 
+<div id="hasil" class="transition-opacity">
+  <p class="text-xs text-[var(--ink-faint)] m-0 mb-6 min-h-[1rem]">{{ ($q !== '' && method_exists($items, 'total')) ? 'Ditemukan '.$items->total().' data' : '' }}</p>
+
+    @unless ($items->isEmpty())
   <div class="overflow-x-auto">
     <table class="w-full text-sm whitespace-nowrap">
       <thead>
@@ -42,7 +45,7 @@
         </tr>
       </thead>
       <tbody>
-        @forelse ($items as $r)
+        @foreach ($items as $r)
           <tr style="border-top:1px solid var(--line)">
             <td class="py-3 pr-6">
               <div class="font-semibold">{{ $r->nama_barang }}</div>
@@ -62,12 +65,14 @@
               <a data-lock class="inline-block py-2 px-1 text-xs text-red-600 cursor-pointer touch-manipulation select-none transition hover:underline active:scale-95" href="{{ route('inventaris.hapus', $r) }}">Hapus</a>
             </td>
           </tr>
-        @empty
-          <tr><td colspan="4" class="py-10 text-center text-[var(--ink-faint)]">Tidak ada data ditemukan.</td></tr>
-        @endforelse
+        @endforeach
       </tbody>
     </table>
   </div>
+  @else
+    <div class="py-10 text-center text-[var(--ink-faint)]">Tidak ada data ditemukan.</div>
+  @endunless
+
   @php
   $items->withQueryString();
   $last = method_exists($items, 'lastPage') ? max($items->lastPage(), 1) : null;
@@ -112,6 +117,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }));
 
   window.addEventListener('pageshow', unlockAll);   // bfcache: kembali via Back
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('formCari'), q = document.getElementById('q');
+  let timer, ctrl;
+
+  const muat = async () => {
+    ctrl?.abort(); ctrl = new AbortController();
+    const p = new URLSearchParams(new FormData(form));
+    for (const [k, v] of [...p]) if (!v) p.delete(k);
+    const url = new URL(location.pathname + (p.toString() ? '?' + p : ''), location.origin);
+    document.getElementById('hasil').classList.add('opacity-60');
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!r.ok) throw new Error(r.status);
+      const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+      document.getElementById('hasil').replaceWith(doc.getElementById('hasil'));
+      document.getElementById('tabs').replaceWith(doc.getElementById('tabs'));
+      history.replaceState(null, '', url);
+    } catch (e) {
+      if (e.name !== 'AbortError') form.submit();
+    }
+  };
+
+  q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(muat, 300); });
+  form.addEventListener('submit', e => { e.preventDefault(); clearTimeout(timer); muat(); });
 });
 </script>
 @endsection

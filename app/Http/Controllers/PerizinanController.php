@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * Akun dipakai bersama (1 akun guru, 1 akun wali_kelas), jadi identitas orang
@@ -223,12 +224,12 @@ class PerizinanController extends Controller
             $hp = $this->hpWali($perizinan);
             $acc = route('perizinan.acc_link', $perizinan->uuid);
             $n = $perizinan->siswa->count();
-            $pesan = "Assalamualaikum {$perizinan->wali_kelas_tujuan}. Mohon ACC izin siswa:\n"
+            $pesan = "Assalamualaikum Bapak/Ibu Wali Kelas ({$perizinan->wali_kelas_tujuan}). Mohon memproses izin siswa berikut:\n"
                 .($n > 1 ? "{$n} siswa ({$perizinan->daftarKelas()}), a.n. {$perizinan->ringkas()}\n" : "{$perizinan->ringkas()} ({$perizinan->daftarKelas()})\n")
-                ."{$perizinan->durasi}: ".$perizinan->tanggal_mulai->translatedFormat('j M Y').' '.substr($perizinan->jam_mulai, 0, 5)
+                ."Waktu: ".$perizinan->tanggal_mulai->translatedFormat('j M Y').' '.substr($perizinan->jam_mulai, 0, 5)
                 .' s.d. '.$perizinan->tanggal_selesai->translatedFormat('j M Y').' '.substr($perizinan->jam_selesai, 0, 5)."\n"
                 ."Alasan: {$perizinan->alasan}\n\n"
-                ."Buka tautan ini untuk ACC (siapkan 4 digit terakhir no HP Anda):\n{$acc}";
+                ."Buka tautan ini untuk ACC/Tolak perizinan (siapkan 4 digit terakhir no HP Anda):\n{$acc}";
             $extra = [
                 'hpWali' => $hp,
                 'accUrl' => $acc,
@@ -362,33 +363,48 @@ class PerizinanController extends Controller
     }
 
     private function accLinkProses(Request $request, string $uuid, string $status, string $kata): RedirectResponse
-    {
-        $p = Perizinan::with('siswa')->where('uuid', $uuid)->firstOrFail();
-        $d = $request->validate([
-            'pin' => ['required', 'digits:4'],
-            'catatan_wali_kelas' => [$status === Perizinan::DITOLAK ? 'required' : 'nullable', 'string', 'max:200'],
-        ], [
-            'pin.required' => 'Isi 4 digit terakhir no HP Anda.',
-            'pin.digits' => 'PIN harus 4 angka.',
-            'catatan_wali_kelas.required' => 'Alasan penolakan wajib diisi.',
-        ]);
+{
+    $kIp   = 'acc-pin:'.$uuid.'|'.$request->ip();
+    $kUuid = 'acc-pin:'.$uuid;
 
-        $hp = $p->wali_kelas_tujuan ? $this->hpWali($p) : null;
-        if (! $hp || ! hash_equals(substr($hp, -4), $d['pin'])) {
-            return back()->withInput($request->only('catatan_wali_kelas'))
-                ->withErrors(['pin' => '4 digit terakhir no HP tidak cocok.']);
-        }
-
-        $ok = $this->prosesDb($p, $status, [
-            'diproses_oleh' => $p->wali_kelas_tujuan,
-            'catatan_wali_kelas' => $d['catatan_wali_kelas'] ?? null,
-        ]);
-
-        return redirect()->route('perizinan.acc_link', $uuid)->with(
-            $ok ? 'status' : 'warning',
-            $ok ? "Izin {$p->ringkas()} berhasil {$kata}. Terima kasih." : 'Izin ini sudah diproses atau dibatalkan lebih dulu.'
-        );
+    // 1. Cek terkunci, paling atas.
+    if (RateLimiter::tooManyAttempts($kIp, 5) || RateLimiter::tooManyAttempts($kUuid, 15)) {
+        return back()->withErrors(['pin' => 'Terlalu banyak percobaan. Coba lagi beberapa menit lagi.']);
     }
+
+    $p = Perizinan::with('siswa')->where('uuid', $uuid)->firstOrFail();
+    $d = $request->validate([
+        'pin' => ['required', 'digits:4'],
+        'catatan_wali_kelas' => [$status === Perizinan::DITOLAK ? 'required' : 'nullable', 'string', 'max:200'],
+    ], [
+        'pin.required' => 'Isi 4 digit terakhir no HP Anda.',
+        'pin.digits' => 'PIN harus 4 angka.',
+        'catatan_wali_kelas.required' => 'Alasan penolakan wajib diisi.',
+    ]);
+
+    $hp = $p->wali_kelas_tujuan ? $this->hpWali($p) : null;
+    if (! $hp || ! hash_equals(substr($hp, -4), $d['pin'])) {
+        // 2. PIN salah: catat percobaan.
+        RateLimiter::hit($kIp, 900);    // 15 menit
+        RateLimiter::hit($kUuid, 1800); // 30 menit
+
+        return back()->withInput($request->only('catatan_wali_kelas'))
+            ->withErrors(['pin' => '4 digit terakhir no HP tidak cocok.']);
+    }
+
+    // 3. PIN benar: reset hitungan IP.
+    RateLimiter::clear($kIp);
+
+    $ok = $this->prosesDb($p, $status, [
+        'diproses_oleh' => $p->wali_kelas_tujuan,
+        'catatan_wali_kelas' => $d['catatan_wali_kelas'] ?? null,
+    ]);
+
+    return redirect()->route('perizinan.acc_link', $uuid)->with(
+        $ok ? 'status' : 'warning',
+        $ok ? "Izin {$p->ringkas()} berhasil {$kata}. Terima kasih." : 'Izin ini sudah diproses atau dibatalkan lebih dulu.'
+    );
+}
 
     /** No HP (628xx) wali kelas tujuan dari tabel kelas. */
     private function hpWali(Perizinan $p): ?string

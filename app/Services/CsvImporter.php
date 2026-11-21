@@ -24,7 +24,7 @@ class CsvImporter
 {
     public const TYPES = [
         'kalender' => 'Kalender akademik',
-        'kelas' => 'Kelas + wali kelas (+ no HP)',
+        'kelas' => 'Kelas & wali kelas',
         'siswa' => 'Data siswa',
         'jadwal' => 'Jadwal pelajaran',
         'guru_piket' => 'Guru piket',

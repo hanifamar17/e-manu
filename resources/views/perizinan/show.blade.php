@@ -2,6 +2,11 @@
 @section('title', 'Izin '.$item->id_perizinan)
 
 @section('content')
+<style>
+  .dlg-center { margin: auto; }
+  .dlg-center::backdrop { background: rgba(31,28,25,.45); }
+</style>
+
 @php
     $inp = 'block w-full py-2.5 px-0 text-base sm:text-sm bg-transparent border-0 border-b border-[var(--line)] focus:outline-none focus:ring-0 focus:border-[var(--accent)] rounded-none text-[var(--ink)]';
     $lbl = 'eyebrow mono text-[11px] font-bold uppercase tracking-widest text-[var(--ink-soft)] mb-1 block';
@@ -126,7 +131,7 @@
   @if ($bisaBatal)
     <button type="button" id="bukaBatal" class="px-4 py-2.5 text-sm font-semibold bg-white border border-[var(--line)] text-red-600 cursor-pointer touch-manipulation select-none transition hover:bg-red-600 hover:text-white hover:border-red-600 active:scale-[0.97]">Batalkan izin</button>
 
-    <dialog id="dlgBatal" class="p-0 border border-[var(--line)] bg-[var(--paper)] text-[var(--ink)] w-[92vw] max-w-md">
+    <dialog id="dlgBatal" class="dlg-center p-0 border border-[var(--line)] bg-[var(--paper)] text-[var(--ink)] w-[92vw] max-w-md">
       <form data-lock method="POST" action="{{ route('perizinan.batal', $item) }}" class="p-5 space-y-5">
         @csrf
         <h2 class="text-lg font-bold m-0">Batalkan izin {{ $item->ringkas() }}?</h2>
